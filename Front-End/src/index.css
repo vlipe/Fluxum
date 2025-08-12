@@ -1,0 +1,8 @@
+/* src/input.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#root {
+  @apply font-poppins;
+}   
