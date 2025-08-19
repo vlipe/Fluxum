@@ -13,8 +13,11 @@ module.exports = {
         poppins: ["Poppins", "sans-serif"],
       },
       borderRadius: {
-        '50': '50px'
-      }
+        '20': '20px'
+      },
+      screens: {
+        'md-lg': '900px', // Novo breakpoint entre md e lg
+      },
     },
   },
   plugins: [],
