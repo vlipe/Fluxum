@@ -60,7 +60,8 @@ async function sendPasswordReset(email, name, link) {
     <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial">
       <p>Olá ${name || ''},</p>
       <p>Recebemos um pedido para redefinir sua senha. Se foi você, clique abaixo.</p>
-      <p><a href="${link}" style="display:inline-block;padding:10px 16px;background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px">Redefinir senha</a></p>
+      <p><a href="${link}" style="display:inline-block;padding:10px 16px;
+      background:#0d6efd;color:#fff;text-decoration:none;border-radius:6px">Redefinir senha</a></p>
       <p>Ou copie e cole:<br><code>${link}</code></p>
       <p style="color:#666">Se você não solicitou, ignore este e-mail.</p>
     </div>
@@ -73,7 +74,7 @@ async function sendPasswordReset(email, name, link) {
   });
 
   if (willSend) {
-    // se falhar, a exceção sobe para a rota (a rota loga o erro)
+    // se falhar, a exceção sobe para a rota (a rota loga o erro e vai para o log)
     await transporter.sendMail({ from, to: email, subject, text, html });
     return { sent: true, mode: 'smtp' };
   } else {

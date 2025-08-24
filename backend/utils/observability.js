@@ -6,7 +6,7 @@ const { v4: uuid } = require('uuid');
 
 const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
-  // Reduza risco de vazar dados sensíveis em logs
+  // Reduz risco de vazar dados em logs
   redact: {
     paths: [
       'req.headers.authorization',
