@@ -1,4 +1,4 @@
-const db = require('../database/db');
+const db = require('../database/db.js');
 
 exports.registerMovement = (req, res) => {
   const { containerId, location, status } = req.body;

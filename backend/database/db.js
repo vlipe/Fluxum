@@ -1,16 +1,15 @@
-const sqlite3 = require('sqlite3').verbose();
-const db = new sqlite3.Database('./rfid.db');
+// database/db.js (CommonJS)
+const pg = require('pg');
+const dotenv = require('dotenv');
+dotenv.config();
 
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS containers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      containerId TEXT,
-      location TEXT,
-      status TEXT,
-      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false } // Neon usa TLS
 });
 
-module.exports = db;
+const query = (text, params) => pool.query(text, params);
+
+module.exports = { pool, query };
