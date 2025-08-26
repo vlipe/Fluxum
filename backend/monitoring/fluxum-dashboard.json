@@ -1,0 +1,92 @@
+{
+  "title": "Fluxum - Backend (Node.js)",
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "CPU (s) total",
+      "targets": [{ "expr": "process_cpu_seconds_total", "refId": "A" }],
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "type": "stat",
+      "title": "Memória (RSS)",
+      "targets": [{ "expr": "process_resident_memory_bytes", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "bytes" } },
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "type": "gauge",
+      "title": "Event Loop Lag (p99)",
+      "targets": [{ "expr": "nodejs_eventloop_lag_p99_seconds", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s", "max": 0.2 } },
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests por segundo (RPS)",
+      "targets": [
+        {
+          "expr": "sum(rate(http_request_duration_seconds_count[1m]))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 7 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latência - p50/p90/p99",
+      "targets": [
+        { "expr": "histogram_quantile(0.5,  sum by (le) (rate(http_request_duration_seconds_bucket[1m])))", "refId": "A" },
+        { "expr": "histogram_quantile(0.9,  sum by (le) (rate(http_request_duration_seconds_bucket[1m])))", "refId": "B" },
+        { "expr": "histogram_quantile(0.99, sum by (le) (rate(http_request_duration_seconds_bucket[1m])))", "refId": "C" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 7 }
+    },
+    {
+      "type": "bargauge",
+      "title": "Requests por rota (1m)",
+      "targets": [
+        {
+          "expr": "topk(10, sum by (method, route) (rate(http_request_duration_seconds_count[1m])))",
+          "refId": "A"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 11, "w": 12, "h": 7 }
+    },
+    {
+      "type": "timeseries",
+      "title": "GC Duration (sum por tipo)",
+      "targets": [
+        { "expr": "sum by (kind) (rate(nodejs_gc_duration_seconds_sum[1m]))", "refId": "A" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "x": 12, "y": 11, "w": 12, "h": 7 }
+    },
+    {
+      "type": "stat",
+      "title": "Handles ativos",
+      "targets": [{ "expr": "nodejs_active_handles_total", "refId": "A" }],
+      "gridPos": { "x": 0, "y": 18, "w": 6, "h": 4 }
+    },
+    {
+      "type": "stat",
+      "title": "Resources ativos",
+      "targets": [{ "expr": "nodejs_active_resources_total", "refId": "A" }],
+      "gridPos": { "x": 6, "y": 18, "w": 6, "h": 4 }
+    },
+    {
+      "type": "stat",
+      "title": "Uptime (início do processo)",
+      "targets": [{ "expr": "process_start_time_seconds", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "x": 12, "y": 18, "w": 6, "h": 4 }
+    }
+  ],
+  "templating": { "list": [] }
+}

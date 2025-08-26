@@ -1,0 +1,117 @@
+{
+  "title": "Fluxum - Operacional (Business)",
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total de eventos (período do dashboard)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "table",
+          "rawSql": "SELECT COUNT(*)::int AS total FROM container_movements WHERE $__timeFilter(COALESCE(ts_iso, created_at));",
+          "sql": {}
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Movimentos por dia",
+      "gridPos": { "x": 6, "y": 0, "w": 18, "h": 8 },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "time_series",
+          "rawSql": "SELECT $__timeGroupAlias(COALESCE(ts_iso, created_at), '1d'), COUNT(*)::int AS total\nFROM container_movements\nWHERE $__timeFilter(COALESCE(ts_iso, created_at))\nGROUP BY 1\nORDER BY 1;",
+          "sql": {}
+        }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Por local (top 10 no período)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "options": { "displayMode": "lcd", "orientation": "horizontal" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(location,'UNKNOWN') AS location, COUNT(*)::int AS total\nFROM container_movements\nWHERE $__timeFilter(COALESCE(ts_iso, created_at))\nGROUP BY 1\nORDER BY total DESC\nLIMIT 10;",
+          "sql": {}
+        }
+      ]
+    },
+    {
+      "type": "bargauge",
+      "title": "Top contêineres (top 10 no período)",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "options": { "displayMode": "lcd", "orientation": "horizontal" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "table",
+          "rawSql": "SELECT container_id, COUNT(*)::int AS total\nFROM container_movements\nWHERE $__timeFilter(COALESCE(ts_iso, created_at))\nGROUP BY 1\nORDER BY total DESC, container_id ASC\nLIMIT 10;",
+          "sql": {}
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Últimos eventos",
+      "gridPos": { "x": 0, "y": 12, "w": 24, "h": 8 },
+      "options": { "showHeader": true, "footer": { "show": false } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(ts_iso, created_at) AS ts,\n       container_id,\n       event_type,\n       COALESCE(location,'UNKNOWN') AS location,\n       COALESCE(site,'-') AS site,\n       gpio,\n       COALESCE(device_id,'-') AS device_id\nFROM container_movements\nWHERE $__timeFilter(COALESCE(ts_iso, created_at))\nORDER BY COALESCE(ts_iso, created_at) DESC, id DESC\nLIMIT 100;",
+          "sql": {}
+        }
+      ]
+    },
+    {
+      "type": "heatmap",
+      "title": "Heatmap: hora x dia da semana",
+      "gridPos": { "x": 0, "y": 20, "w": 24, "h": 10 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+          "format": "table",
+          "rawSql": "SELECT\n  EXTRACT(DOW FROM COALESCE(ts_iso, created_at))::int AS dow,\n  EXTRACT(HOUR FROM COALESCE(ts_iso, created_at))::int AS hour,\n  COUNT(*)::int AS total\nFROM container_movements\nWHERE $__timeFilter(COALESCE(ts_iso, created_at))\nGROUP BY 1,2\nORDER BY 1,2;",
+          "sql": {}
+        }
+      ],
+      "options": {
+        "heatmap": {},
+        "legend": { "show": true },
+        "yAxis": { "decimals": 0 }
+      }
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "location",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "__DS_POSTGRES__" },
+        "refresh": 1,
+        "hide": 0,
+        "query": "SELECT DISTINCT COALESCE(location,'UNKNOWN') AS location FROM container_movements ORDER BY 1;",
+        "includeAll": true,
+        "multi": true
+      }
+    ]
+  }
+}

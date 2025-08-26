@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "author": "João Camillis",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "wokwi-breadboard-half",
+      "id": "bb1",
+      "top": -3,
+      "left": 2.8,
+      "rotate": 180,
+      "attrs": {}
+    },
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -240, "left": 100.84, "attrs": {} },
+    {
+      "type": "wokwi-pushbutton-6mm",
+      "id": "btn1",
+      "top": 60,
+      "left": 40,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton-6mm",
+      "id": "btn2",
+      "top": 100,
+      "left": 40,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton-6mm",
+      "id": "btn3",
+      "top": 140,
+      "left": 40,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "resG",
+      "top": 60,
+      "left": 140,
+      "attrs": { "value": "220" }
+    },
+    { "type": "wokwi-led", "id": "ledG", "top": 60, "left": 180, "attrs": { "color": "green" } },
+    {
+      "type": "wokwi-resistor",
+      "id": "resR",
+      "top": 100,
+      "left": 140,
+      "attrs": { "value": "220" }
+    },
+    { "type": "wokwi-led", "id": "ledR", "top": 100, "left": 180, "attrs": { "color": "red" } }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:GND.1", "bb1:bn.5", "black", [] ],
+    [ "btn1:2.r", "esp:13", "green", [] ],
+    [ "btn2:2.r", "esp:14", "green", [] ],
+    [ "btn3:2.r", "esp:26", "green", [] ],
+    [ "btn1:1.l", "bb1:bn.10", "black", [] ],
+    [ "btn2:1.l", "bb1:bn.12", "black", [] ],
+    [ "btn3:1.l", "bb1:bn.14", "black", [] ],
+    [ "esp:25", "resG:1", "green", [] ],
+    [ "resG:2", "ledG:A", "green", [] ],
+    [ "ledG:K", "bb1:bn.20", "black", [] ],
+    [ "esp:33", "resR:1", "red", [] ],
+    [ "resR:2", "ledR:A", "red", [] ],
+    [ "ledR:K", "bb1:bn.22", "black", [] ]
+  ],
+  "dependencies": {}
+}

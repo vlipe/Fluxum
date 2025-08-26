@@ -1,5 +1,6 @@
 {
-  "watch": ["server.js", "routes", "database", "middleware", "validators"],
+  "watch": ["."],
   "ext": "js,json",
-  "exec": "node server.js"
+  "signal": "SIGTERM",
+  "exec": "node"             
 }
