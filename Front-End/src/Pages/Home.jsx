@@ -14,6 +14,9 @@ import F7 from "../assets/Frame 7.svg";
 import F8 from "../assets/Frame 8.svg";
 import F9 from "../assets/Frame 9.svg";
 import F10 from "../assets/Frame 10.svg";
+import F11 from "../assets/Frame 11.svg";
+import F12 from "../assets/Frame 12.svg";
+import F13 from "../assets/Frame 13.svg";
 
 import { Link } from "react-router-dom";
 
@@ -218,13 +221,10 @@ const App = () => {
 
       {/* final do código referente a sidebar mobile aberta */}
 
+      {/* começo do código para o primeiro container da home */}
 
-          {/* começo do código para o primeiro container da home */}
-
-      <div className="h-[672px] w-full flex flex-col mb-96 sm:h-[800px] md:h-[840px] md:mt-20 lg:h-[1180px]">
-
-
-          {/* código referente ao conteiner superior  */}
+      <div className="h-[672px] w-full flex flex-col sm:h-[800px] md:h-[840px] md:mt-20 lg:h-[1180px]">
+        {/* código referente ao conteiner superior  */}
         <div
           className="w-11/12 h-1/2 bg-purple-50 border-stone-100 rounded-2xl mx-auto flex flex-col shadow-[0px_0px_10px_6px_rgba(25,27,64,0.1)]
         sm:min-h-96
@@ -289,13 +289,11 @@ const App = () => {
           </div>
         </div>
 
-
-
         {/* código referente ao container inferior */}
         <div
           className="w-11/12 h-7/12 z-80 bg-indigo-500 rounded-2xl mx-auto flex justify-between border-4 border-indigo-500 -mt-6 md:min-h-[440px]
         lg:min-h-[500px]
-        2xl:min-h-[550px]"
+        2xl:min-h-[600px]"
         >
           <div
             className="flex flex-col w-3/6 min-h-full justify-between
@@ -361,7 +359,7 @@ const App = () => {
           <div
             className="flex my-auto w-5/12 mr-2 h-full md:h-5/6 md-lg:h-full md:-rotate-[25deg] 
           xl:ml-0 xl:mr-0
-          a2xla:mr-16 2xl:-mat-6"
+          2xl:mr-16 2xl:-mat-6"
           >
             <img
               src={Celular}
@@ -399,7 +397,29 @@ const App = () => {
         </div>
       </div>
 
+      {/* começo do código referente as caixas de informações */}
+
+          <div className="w-11/12 bga-red-900 flex flex-col mx-auto -mt-8 mb-96">
           
+          <div className="w-88 h-60 flex bg-white rounded-xl mx-auto flex-col">
+            <img src={F11} alt="" className="w-2/12 mt-4 ml-6"/>
+            <div className="text-2xl font-bold text-slate-700 mt-3 ml-6">Fluxo Monitorado</div>
+            <div className="mt-2 ml-6 text-base text-slate-700 pr-4">Visualize, analise e tome desições com base em dados reais.</div>
+          </div>
+
+          <div className="w-88 h-60 flex bg-white rounded-xl mx-auto flex-col shadow-[0px_0px_20px_6px_rgba(25,27,64,0.15)] z-20">
+            <img src={F12} alt="" className="w-2/12 mt-4 ml-6"/>
+            <div className="text-2xl font-bold text-slate-700 mt-3 ml-6">Decições Rápidas</div>
+            <div className="mt-2 ml-6 text-base text-slate-700 pr-4">Visualize, analise e tome decisões com base em dados reais, utilizando o sistema inteligente, Fluxum.</div>
+          </div>
+
+          <div className="w-88 h-60 flex bg-white rounded-xl mx-auto flex-col mt-4">
+            <img src={F13} alt="" className="w-2/12 mt-4 ml-6"/>
+            <div className="text-2xl font-bold text-slate-700 mt-3 ml-6">Detecte Riscos</div>
+            <div className="mt-2 ml-6 text-base text-slate-700 pr-4">Receba notificações automáticas sobre movimentações incomuns, atrasos ou situações críticas no fluxo portuário.</div>
+          </div>
+
+          </div>
 
     </div>
   );
