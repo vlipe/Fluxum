@@ -429,7 +429,7 @@ const App = () => {
             md:text-2xl
             lg:text-xl"
             >
-              Visualize, analise e tome desições com base em dados reais.
+              Visualize, analise e tome decisões com base em dados reais.
             </div>
           </div>
 
