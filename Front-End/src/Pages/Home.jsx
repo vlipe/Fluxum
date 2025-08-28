@@ -17,6 +17,7 @@ import F10 from "../assets/Frame 10.svg";
 import F11 from "../assets/Frame 11.svg";
 import F12 from "../assets/Frame 12.svg";
 import F13 from "../assets/Frame 13.svg";
+import F14 from "../assets/Frame 14.svg";
 
 import { Link } from "react-router-dom";
 
@@ -27,8 +28,35 @@ import { library } from "@fortawesome/fontawesome-svg-core";
 import { fas } from "@fortawesome/free-solid-svg-icons";
 import { far } from "@fortawesome/free-regular-svg-icons";
 import { fab } from "@fortawesome/free-brands-svg-icons";
+import FaqComponent from "../Components/FaqComponent";
 
 library.add(fas, far, fab);
+
+{/* Perguntas referentes ao faqComponent */}
+
+const faqData = [
+  {
+    question: "Preciso de conexão à internet?",
+    answer: "Sim, é necessária uma conexão de internet para o funcionamento completo do sistema Fluxum, pois ele utiliza computação em nuvem para processar e armazenar dados em tempo real."
+  },
+  {
+    question: "Como funciona a comunicação com os sensores IoT?",
+    answer: "A comunicação é feita via uma rede mesh de longo alcance, que envia os dados para a plataforma Fluxum, onde são processados em tempo real."
+  },
+  {
+    question: "Posso acessar o sistema de qualquer lugar?",
+    answer: "Sim, o sistema é baseado na nuvem e pode ser acessado de qualquer dispositivo com uma conexão à internet, seja um celular, tablet ou computador."
+  },
+  {
+    question: "O sistema emite alertas para riscos?",
+    answer: "Sim, a plataforma Fluxum monitora dados em tempo real e emite alertas automáticos em caso de anomalias ou riscos de segurança, garantindo uma resposta rápida e eficaz."
+  },
+  {
+    question: "O sistema é compatível com diferentes tipos de sensores?",
+    answer: "Sim, o Fluxum é projetado para ser flexível e se integra a uma ampla variedade de sensores IoT, permitindo que você adapte a plataforma às necessidades específicas do seu porto."
+  },
+
+];
 
 // Ícones simples para o botão de abrir e fechar
 const MenuIcon = () => (
@@ -161,9 +189,10 @@ const App = () => {
           md:hidden fixed top-0 left-0 h-svh overflow-y-auto w-7/12 bg-purple-50 text-white rounded-e-3xl z-50
           transform transition-transform duration-300 ease-in-out
           ${menuOpen ? "translate-x-0 " : "-translate-x-full "}
-          ${menuOpen
-            ? "shadow-[0_-5px_20px_0_rgba(0,0,0,0.1),_5px_0_10px_0_rgba(0,0,0,0.1),_0_5px_20px_0_rgba(91,97,179,0.1)]"
-            : ""
+          ${
+            menuOpen
+              ? "shadow-[0_-5px_20px_0_rgba(0,0,0,0.1),_5px_0_10px_0_rgba(0,0,0,0.1),_0_5px_20px_0_rgba(91,97,179,0.1)]"
+              : ""
           }
         `}
       >
@@ -412,8 +441,12 @@ const App = () => {
           xl:w-96
           2xlw-[520px]:"
           >
-            <img src={F11} alt="" className="w-2/12 mt-4 ml-6 sm:mt-8
-            lg:mt-4" />
+            <img
+              src={F11}
+              alt=""
+              className="w-2/12 mt-4 ml-6 sm:mt-8
+            lg:mt-4"
+            />
             <div
               className="text-2xl font-bold text-slate-700 mt-3 ml-6
             sm:text-4xl sm:mt-6
@@ -441,15 +474,19 @@ const App = () => {
           xl:shadow-[0px_0px_20px_6px_rgba(25,27,64,0.15)] xl:z-20
           2xl:w-[520px] 2xl:rounded-2xl"
           >
-            <img src={F12} alt="" className="w-2/12 mt-4 ml-6 sm:mt-8
-            lg:mt-4" />
+            <img
+              src={F12}
+              alt=""
+              className="w-2/12 mt-4 ml-6 sm:mt-8
+            lg:mt-4"
+            />
             <div
               className="text-2xl font-bold text-slate-700 mt-3 ml-6
             sm:text-4xl sm:mt-6
              md:text-5xl md:mt-8
              lg:text-3xl lg:mt-4"
             >
-              Decições Rápidas
+              Decisões Rápidas
             </div>
             <div
               className="mt-2 ml-6 text-base text-slate-700 pr-4
@@ -464,14 +501,18 @@ const App = () => {
         </div>
 
         <div
-          className="w-full h-60 flex bg-white rounded-xl mx-auto flex-col  mt-4
+          className="w-full h-60 flex bg-white rounded-xl mx-auto flex-col  mt-4 -z-10
           sm:h-80
           md:h-96
           lg:shadow-[0px_0px_20px_6px_rgba(25,27,64,0.15)] lg:z-20 lg:mt-8 lg:h-80
           xl:shadow-none xl:mt-0 xl:w-96 xl:h-72 xl:-z-10
           2xl:w-[520px]"
         >
-          <img src={F13} alt="" className="w-2/12 mt-4 ml-6 sm:mt-8 lg:w-1/12 xl:w-2/12 xl:mt-4" />
+          <img
+            src={F13}
+            alt=""
+            className="w-2/12 mt-4 ml-6 sm:mt-8 lg:w-1/12 xl:w-2/12 xl:mt-4"
+          />
           <div
             className="text-2xl font-bold text-slate-700 mt-3 ml-6
             sm:text-4xl sm:mt-6
@@ -482,7 +523,7 @@ const App = () => {
             Detecte Riscos
           </div>
           <div
-            className="mt-2 ml-6 text-base text-slate-700 pr-4
+            className="mt-2 ml-6 text-base text-slate-700 pr-4 
             sm:text-xl
             md:text-2xl
             lg:text-3xl lg:font-light lg:pr-28
@@ -496,62 +537,44 @@ const App = () => {
 
       {/* Começo do container de dúvidas frequentes */}
 
-      <div className="w-full h-[860px] bg-aared-700 mt-12 mb-96 flex flex-col">
-
+      <div className="w-full min-h-screen bg-aared-700 mt-12 flex flex-col mb-96">
         <div
-          className="w-5/12 h-8 bg-white text-sm flex justify-center mt-4 items-center rounded-md text-indigo-500 mx-auto shadow-[0px_0px_5px_4px_rgba(25,27,64,0.1)]
-          sm:w-4/12 sm:h-9
-          md:w-3/12
-          lg:w-2/12
-          xl:h-10 xl:text-base
-          2xl:text-lg"
+          className="w-5/12 min-h-8 bg-white text-sm flex justify-center mt-4 items-center rounded-md text-indigo-500 mx-auto shadow-[0px_0px_5px_4px_rgba(25,27,64,0.1)]
+          sm:w-5/12 sm:h-11 sm:text-lg sm:mt-16
+          md:w-5/12 md:text-xl md:h-12 md:mt-24
+          lg:w-4/12 lg:text-2xl lg:h-14 lg:mt-32
+          xl:w-3/12
+          2xl:text-2xl 2xl:mt-36"
         >
           Perguntas Frenquentes
         </div>
 
-        <div className="flex w-10/12 bga-yellow-500 mt-16 text-3xl ml-4 font-bold text-slate-700">Principais Perguntas Frequentes</div>
+        <div className="flex w-10/12 bag-yellow-500 mt-16 text-3xl ml-4 font-bold text-slate-700
+        sm:text-4xl sm:ml-8 sm:mt-24
+        md:text-5xl
+        lg:text-6xl lg:mb-12
+        2xl:mt-40 2xl:ml-12">
+          Principais <br></br> Perguntas Frequentes
+        </div>
 
-          <div className="flex flex-col w-full mt-8">
-            <div className="w-10/12 h-24 mx-auto mt-8 rounded-xl border-2 border-gray-300 bg-white">
-            <div className="flex w-full h-full justify-between">
-              <div className="my-auto ml-2 font-bold text-slate-700">Preciso de conexão a internet</div>
-              <div className="my-auto mr-8 text-2xl font-bold">+</div>
-            </div>
-            </div>
+          <div className="lg:flex mt-8 lg:justify-between">
 
-                        <div className="w-10/12 h-24 mx-auto mt-8 rounded-xl border-2 border-gray-300 bg-white">
-            <div className="flex w-full h-full justify-between">
-              <div className="my-auto ml-2 font-bold text-slate-700">Preciso de conexão a internet</div>
-              <div className="my-auto mr-8 text-2xl font-bold">+</div>
-            </div>
-            </div>
-
-                        <div className="w-10/12 h-24 mx-auto mt-8 rounded-xl border-2 border-gray-300 bg-white">
-            <div className="flex w-full h-full justify-between">
-              <div className="my-auto ml-2 font-bold text-slate-700">Preciso de conexão a internet</div>
-              <div className="my-auto mr-8 text-2xl font-bold">+</div>
-            </div>
-            </div>
-
-                        <div className="w-10/12 h-24 mx-auto mt-8 rounded-xl border-2 border-gray-300 bg-white">
-            <div className="flex w-full h-full justify-between">
-              <div className="my-auto ml-2 font-bold text-slate-700">Preciso de conexão a internet</div>
-              <div className="my-auto mr-8 text-2xl font-bold">+</div>
-            </div>
-            </div>
-
-                        <div className="w-10/12 h-24 mx-auto mt-8 rounded-xl border-2 border-gray-300 bg-white">
-            <div className="flex w-full h-full justify-between">
-              <div className="my-auto ml-2 font-bold text-slate-700">Preciso de conexão a internet</div>
-              <div className="my-auto mr-8 text-2xl font-bold">+</div>
-            </div>
-            </div>
-
-            
+        <div className="flex flex-col w-full gap-y-8
+        lg:w-1/2">
+          {faqData.map((item, index) => (
+            <FaqComponent
+              key={index}
+              question={item.question}
+              answer={item.answer}
+            />
+          ))}
           </div>
 
-      </div>
+                    <img src={F14} alt="" className="hidden lg:flex w-1/2 my-auto 
+                    2xl:w-5/12 mr-12" />
 
+        </div>
+      </div>
     </div>
   );
 };
