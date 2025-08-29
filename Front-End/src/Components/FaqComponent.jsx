@@ -23,7 +23,7 @@ const FaqComponent = ({ question, answer }) => {
         <div className="my-auto ml-2 font-bold text-slate-700 pr-6">
           {question}
         </div>
-        <div className="my-auto mr-8 text-3xl font-bold text-indigo-500 hover:scale-125 transition-all hover:text-indigo-300 duration-500">
+        <div className="my-auto mr-8 text-3xl font-bold text-indigo-500 lg:hover:scale-125 transition-all lg:hover:text-indigo-300 duration-500">
           {isOpen ? "-" : "+"}
         </div>
       </div>
