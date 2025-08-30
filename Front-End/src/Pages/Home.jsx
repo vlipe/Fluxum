@@ -437,7 +437,7 @@ const App = () => {
       <div
         className="w-11/12 bga-red-900 flex flex-col mx-auto bag-yellow-600 mt-6
           sm:mt-20
-          xl:flex-row xl:justify-between xl:mt-36"
+          xl:flex-row xl:justify-between xl:mt-52"
       >
         <div className="lg:flex xl:w-2/3 xl:justify-between">
           <div
