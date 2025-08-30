@@ -4,7 +4,7 @@ import Github from "../assets/Logo do GitHub.svg";
 
 const Footer = () => {
   return (
-    <div className="w-full bg-white rounded-t-3xl pt-12 flex flex-col shadow-[0px_0_25px_2px_rgba(25,27,64,0.4)] xl:mt-64">
+    <div className="w-full bg-white rounded-t-3xl xl:pt-12 flex flex-col shadow-[0px_0_25px_2px_rgba(25,27,64,0.4)] xl:mt-64">
       <div className="xl:flex ">
         <div
           className="flex justify-between xl:flex-col xl:justify-normal
