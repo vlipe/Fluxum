@@ -1,20 +1,17 @@
 import { useState, useEffect } from "react";
 
-import DashBoard from "../assets/box 1 (1).svg";
+
 import Logo from "../assets/logo.svg";
-import Mapa from "../assets/map 1.svg";
-import Home from "../assets/house 1.svg";
-import Aletrtas from "../assets/flag 1.svg";
-import Relatorio from "../assets/chart-pie 1.svg";
-import Celular from "../assets/CelularH.svg";
-import NotRisco from "../assets/NotRisco.svg";
-import F6 from "../assets/Frame 6.svg";
-import F8 from "../assets/Frame 8.svg";
-import F9 from "../assets/Frame 9.svg";
-import F11 from "../assets/Frame 11.svg";
-import F12 from "../assets/Frame 12.svg";
-import F13 from "../assets/Frame 13.svg";
-import F14 from "../assets/Frame 14.svg";
+
+import Celular from "../assets/assetsHome/CelularH.svg";
+import NotRisco from "../assets/assetsHome/NotRisco.svg";
+import F6 from "../assets/assetsHome/Frame 6.svg";
+import F8 from "../assets/assetsHome/Frame 8.svg";
+import F9 from "../assets/assetsHome/Frame 9.svg";
+import F11 from "../assets/assetsHome/Frame 11.svg";
+import F12 from "../assets/assetsHome/Frame 12.svg";
+import F13 from "../assets/assetsHome/Frame 13.svg";
+import F14 from "../assets/assetsHome/Frame 14.svg";
 
 import FaqComponent from "../Components/FaqComponent";
 import Footer from "../Components/Footer";

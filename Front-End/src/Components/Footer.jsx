@@ -1,6 +1,5 @@
 import Logo from "../assets/Logo.svg";
-import Instagram from "../assets/Logo do instagram.svg";
-import Github from "../assets/Logo do GitHub.svg";
+
 
 import Icon from "@mdi/react";
 import { mdiInstagram } from "@mdi/js";
