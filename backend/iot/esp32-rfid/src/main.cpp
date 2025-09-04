@@ -1,209 +1,182 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <time.h>
-#include <vector>
+// 1 = Wokwi (botões), 0 = RC522 real
+#define USE_WOKWI_SIM 1
 
-// ---------- Pinos ----------
-#define BTN1 13
-#define BTN2 14
-#define BTN3 26
+#include <WiFi.h>
+#include <time.h>
+
+// ======= REDE/ENDPOINT =======
+#if USE_WOKWI_SIM
+  const char* WIFI_SSID = "Wokwi-GUEST";
+  const char* WIFI_PASS = "";
+  const int   WIFI_CH   = 6;
+
+  // Cole aqui o host e o path do NGROK **HTTP** (NADA de https)
+  const char* API_HOST  = "cockatoo-thorough-aardvark.ngrok-free.app";
+  const int   API_PORT  = 80;
+  const char* API_PATH  = "/api/container-events";
+
+  // Botões
+  #define BTN1 13
+  #define BTN2 14
+  #define BTN3 26
+#else
+  #include <SPI.h>
+  #include <MFRC522.h>
+  #define RC522_SS  5
+  #define RC522_RST 27
+  MFRC522 rfid(RC522_SS, RC522_RST);
+
+  const char* WIFI_SSID = "apto53c";
+  const char* WIFI_PASS = "Thiagoemia";
+
+  const char* API_HOST  = "192.168.15.69";
+  const int   API_PORT  = 3000;
+  const char* API_PATH  = "/api/container-events";
+#endif
+// =============================
+
 #define LED_GREEN 25
 #define LED_RED   33
-
-
-const char* WIFI_SSID = "Wokwi-GUEST";     
-const char* WIFI_PASS = "";
-const int   WIFI_CH   = 6;                 
-
-
-const char* API_URL   = "https://httpbin.org/post";
-
-
-struct Btn {
-  uint8_t pin;
-  int lastStable;
-  int lastRead;
-  unsigned long lastChange;
-  const char* containerId;
-  const char* location;
-} btns[3] = {
-  {BTN1, HIGH, HIGH, 0, "CNT-1001", "Patio-A"},
-  {BTN2, HIGH, HIGH, 0, "CNT-1002", "Patio-B"},
-  {BTN3, HIGH, HIGH, 0, "CNT-1003", "Patio-C"}
-};
-
-String siteId = "PORTO-SP";
-
-
-std::vector<String> pending;
-unsigned long lastRetry = 0;
-
-
-void ledBlink(int pin, int times=1, int on=80, int off=80) {
-  for (int i=0;i<times;i++) { digitalWrite(pin,HIGH); delay(on); digitalWrite(pin,LOW); delay(off); }
-}
 
 String nowISO() {
   time_t now; time(&now);
   struct tm tm; gmtime_r(&now, &tm);
-  char buf[25];
-  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm);
-  return String(buf);
+  char b[25]; strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%SZ", &tm);
+  return String(b);
 }
 
-
-void wifiReset() {
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect(true, true);
-  delay(100);
-  WiFi.setAutoReconnect(true);
+void ledBlink(int pin, int n=1, int on=80, int off=80) {
+  for (int i=0;i<n;i++){ digitalWrite(pin,HIGH); delay(on); digitalWrite(pin,LOW); delay(off); }
 }
 
 void wifiEnsure() {
-  if (WiFi.status() == WL_CONNECTED) return;
-
-  wifiReset();
-  WiFi.begin(WIFI_SSID, WIFI_PASS, WIFI_CH);
-
-  Serial.print("Conectando WiFi ("); Serial.print(WIFI_SSID); Serial.print(") ");
-  unsigned long t0 = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - t0 < 15000) {
-    delay(300);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.print("WiFi: ");
-  Serial.println(WiFi.status()==WL_CONNECTED ? "conectado" : "desconectado");
-
-  if (WiFi.status()==WL_CONNECTED) {
-    Serial.print("IP: "); Serial.println(WiFi.localIP());
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-  }
-
-  
+  if (WiFi.status()==WL_CONNECTED) return;
   WiFi.mode(WIFI_STA);
-  int n = WiFi.scanNetworks();
-  Serial.print("Redes visíveis: "); Serial.println(n);
-  for (int i = 0; i < n; i++) {
-    Serial.printf("  %d) %s (RSSI %d)\n", i+1, WiFi.SSID(i).c_str(), WiFi.RSSI(i));
+  WiFi.disconnect(true,true);
+  delay(100);
+#if USE_WOKWI_SIM
+  WiFi.begin(WIFI_SSID, WIFI_PASS, WIFI_CH);
+#else
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+#endif
+  unsigned long t0=millis();
+  Serial.printf("Conectando WiFi (%s)", WIFI_SSID);
+  while (WiFi.status()!=WL_CONNECTED && millis()-t0<15000){ delay(250); Serial.print("."); }
+  Serial.println();
+  if (WiFi.status()==WL_CONNECTED) {
+    Serial.print("WiFi OK | IP: "); Serial.println(WiFi.localIP());
+    configTime(0,0,"pool.ntp.org","time.nist.gov");
+  } else {
+    Serial.println("WiFi FAIL");
   }
 }
 
+// ======= POST HTTP cru (sem TLS) =======
+bool postEventRaw(const String& payload) {
+  if (WiFi.status()!=WL_CONNECTED) return false;
 
-bool sendPayload(const String& payload) {
-  if (WiFi.status() != WL_CONNECTED) return false;
-  HTTPClient http;
-  http.begin(API_URL);
-  http.addHeader("Content-Type", "application/json");
-  int code = http.POST(payload);
-  String resp = http.getString(); // só pra log
-  http.end();
-  Serial.printf("HTTP %d | %s\n", code, resp.length()? resp.c_str() : "(sem corpo)");
-  return (code >= 200 && code < 300);
-}
-
-bool postEvent(const char* containerId, const char* location, int gpio) {
-  String payload = String("{\"containerId\":\"")+containerId+
-                   "\",\"eventType\":\"RFID_DETECTED\""
-                   ",\"site\":\""+siteId+
-                   "\",\"location\":\""+location+
-                   "\",\"gpio\":"+String(gpio)+
-                   ",\"timestamp\":\""+nowISO()+"\"}";
-
-  Serial.print("POST "); Serial.print(API_URL); Serial.print(" -> ");
-  Serial.println(payload);
-
-  wifiEnsure();
-
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Offline: guardando na fila.");
-    pending.push_back(payload);
-    ledBlink(LED_RED, 1);
+  WiFiClient client;
+  Serial.printf("Conectando a %s:%d\n", API_HOST, API_PORT);
+  if (!client.connect(API_HOST, API_PORT)) {
+    Serial.println("Falha na conexão TCP");
     return false;
   }
 
-  bool ok = sendPayload(payload);
-  ledBlink(ok ? LED_GREEN : LED_RED, 2);
-  if (!ok) pending.push_back(payload);
+  // Monta request HTTP/1.1 manual
+  String req;
+  req  = String("POST ") + API_PATH + " HTTP/1.1\r\n";
+  req += String("Host: ") + API_HOST + "\r\n";
+  req += "Content-Type: application/json\r\n";
+  req += "Connection: close\r\n";
+  req += String("Content-Length: ") + payload.length() + "\r\n\r\n";
+  req += payload;
+
+  client.print(req);
+
+  // Lê a primeira linha (status)
+  String status = client.readStringUntil('\n');
+  status.trim();
+  Serial.print("STATUS: "); Serial.println(status);
+
+  bool ok = status.startsWith("HTTP/1.1 200") || status.startsWith("HTTP/1.1 201");
+
+  // (Opcional) ler resto do corpo para log
+  unsigned long t0 = millis();
+  while (client.connected() && millis()-t0 < 3000) {
+    while (client.available()) {
+      String line = client.readStringUntil('\n');
+      Serial.println(line);
+      t0 = millis();
+    }
+  }
+  client.stop();
   return ok;
 }
+// =======================================
 
+#if !USE_WOKWI_SIM
+String uidHex(const MFRC522::Uid& uid){
+  String s; for (byte i=0;i<uid.size;i++){ if(uid.uidByte[i]<0x10) s+='0'; s+=String(uid.uidByte[i],HEX); }
+  s.toUpperCase(); return s;
+}
+#endif
 
-void setup() {
+void setup(){
+  Serial.begin(115200);
+  delay(100);
+
+  Serial.printf("HOST: %s\nPATH: %s\nPORT: %d\nMODE=%s\n",
+    API_HOST, API_PATH, API_PORT, USE_WOKWI_SIM ? "WOKWI" : "RC522");
+
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
-  digitalWrite(LED_GREEN, LOW);
-  digitalWrite(LED_RED, LOW);
 
-  Serial.begin(115200);
-  delay(200);
-  Serial.println("BOOT");
-  Serial.println("Dica: se S1/S2/S3 ficam sempre =1, gire o botão pra usar o outro lado no GND.");
-
-  for (int i=0;i<3;i++) pinMode(btns[i].pin, INPUT_PULLUP);
+#if USE_WOKWI_SIM
+  pinMode(BTN1, INPUT_PULLUP);
+  pinMode(BTN2, INPUT_PULLUP);
+  pinMode(BTN3, INPUT_PULLUP);
+#else
+  SPI.begin(); rfid.PCD_Init();
+#endif
 
   wifiEnsure();
-  Serial.println("Pronto. Pressione um botão para simular leitura RFID.");
-  ledBlink(LED_GREEN, 3, 60, 60);
+  Serial.println("Pronto.");
 }
 
-void loop() {
-  const unsigned long DEBOUNCE = 25;
+void loop(){
+  wifiEnsure();
 
-  
-  for (int i=0;i<3;i++) {
-    int reading = digitalRead(btns[i].pin);
-    if (reading != btns[i].lastRead) {
-      btns[i].lastChange = millis();
-      btns[i].lastRead   = reading;
+#if USE_WOKWI_SIM
+  struct Btn { int pin; const char* id; const char* loc; } M[] = {
+    { BTN1, "CNT-1001", "Patio-A" },
+    { BTN2, "CNT-1002", "Patio-B" },
+    { BTN3, "CNT-1003", "Patio-C" }
+  };
+  static int last[3]={HIGH,HIGH,HIGH};
+
+  for (int i=0;i<3;i++){
+    int cur=digitalRead(M[i].pin);
+    if (cur==LOW && last[i]==HIGH){
+      String payload = String("{\"containerId\":\"")+M[i].id+
+                       "\",\"eventType\":\"RFID_DETECTED\",\"site\":\"PORTO-SP\""+
+                       ",\"location\":\""+M[i].loc+"\",\"gpio\":"+M[i].pin+
+                       ",\"timestamp\":\""+nowISO()+"\"}";
+      bool ok = postEventRaw(payload);
+      ledBlink(ok?LED_GREEN:LED_RED, 2);
     }
-    if (millis() - btns[i].lastChange > DEBOUNCE) {
-      if (reading != btns[i].lastStable) {
-        btns[i].lastStable = reading;
-
-       
-        Serial.print("Status => S1="); Serial.print(digitalRead(BTN1));
-        Serial.print(" S2=");          Serial.print(digitalRead(BTN2));
-        Serial.print(" S3=");          Serial.println(digitalRead(BTN3));
-
-        if (reading == LOW) {
-          Serial.print("[PRESS] ");
-          Serial.print(btns[i].containerId);
-          Serial.print(" @ "); Serial.print(btns[i].location);
-          Serial.print(" gpio="); Serial.println(btns[i].pin);
-          postEvent(btns[i].containerId, btns[i].location, btns[i].pin);
-        } else {
-          Serial.print("[RELEASE] gpio="); Serial.println(btns[i].pin);
-        }
-      }
-    }
+    last[i]=cur;
   }
+  delay(10);
 
-  
-  static unsigned long t=0;
-  if (millis()-t > 1000) {
-    t = millis();
-    Serial.print("S1="); Serial.print(digitalRead(BTN1));
-    Serial.print(" S2="); Serial.print(digitalRead(BTN2));
-    Serial.print(" S3="); Serial.println(digitalRead(BTN3));
-  }
-
- 
-  if (millis() - lastRetry > 5000) {
-    lastRetry = millis();
-    wifiEnsure();
-    if (WiFi.status() == WL_CONNECTED && !pending.empty()) {
-      Serial.printf("Conectado: reenviando %u eventos pendentes...\n", (unsigned)pending.size());
-      std::vector<String> left;
-      for (auto &p : pending) {
-        if (sendPayload(p)) {
-          ledBlink(LED_GREEN, 1);
-        } else {
-          left.push_back(p); // mantém se falhou
-        }
-      }
-      pending.swap(left);
-      Serial.printf("Fila restante: %u\n", (unsigned)pending.size());
-    }
-  }
+#else
+  if (!rfid.PICC_IsNewCardPresent() || !rfid.PICC_ReadCardSerial()){ delay(20); return; }
+  String uid = uidHex(rfid.uid);
+  String payload = String("{\"containerId\":\"")+uid+
+                   "\",\"eventType\":\"RFID_DETECTED\",\"site\":\"PORTO-SP\""+
+                   ",\"location\":\"Gate-A\",\"gpio\":-1"+
+                   ",\"timestamp\":\""+nowISO()+"\"}";
+  bool ok = postEventRaw(payload);
+  ledBlink(ok?LED_GREEN:LED_RED, 2);
+  rfid.PICC_HaltA(); rfid.PCD_StopCrypto1();
+#endif
 }
