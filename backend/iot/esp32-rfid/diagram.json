@@ -1,71 +1,57 @@
 {
   "version": 1,
-  "author": "João Camillis",
+  "author": "Fluxum",
   "editor": "wokwi",
   "parts": [
-    {
-      "type": "wokwi-breadboard-half",
-      "id": "bb1",
-      "top": -3,
-      "left": 2.8,
-      "rotate": 180,
-      "attrs": {}
-    },
-    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -240, "left": 100.84, "attrs": {} },
-    {
-      "type": "wokwi-pushbutton-6mm",
-      "id": "btn1",
-      "top": 60,
-      "left": 40,
-      "attrs": { "color": "green" }
-    },
-    {
-      "type": "wokwi-pushbutton-6mm",
-      "id": "btn2",
-      "top": 100,
-      "left": 40,
-      "attrs": { "color": "green" }
-    },
-    {
-      "type": "wokwi-pushbutton-6mm",
-      "id": "btn3",
-      "top": 140,
-      "left": 40,
-      "attrs": { "color": "green" }
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "resG",
-      "top": 60,
-      "left": 140,
-      "attrs": { "value": "220" }
-    },
-    { "type": "wokwi-led", "id": "ledG", "top": 60, "left": 180, "attrs": { "color": "green" } },
-    {
-      "type": "wokwi-resistor",
-      "id": "resR",
-      "top": 100,
-      "left": 140,
-      "attrs": { "value": "220" }
-    },
-    { "type": "wokwi-led", "id": "ledR", "top": 100, "left": 180, "attrs": { "color": "red" } }
+    { "type": "board-esp32-devkit-c-v4", "id": "esp", "top": -24, "left": 40, "attrs": {} },
+    { "type": "wokwi-breadboard-half", "id": "bb1", "top": 130, "left": -70, "rotate": 0, "attrs": {} },
+
+    { "type": "wokwi-rc522", "id": "rc522", "top": -50, "left": 260, "attrs": { "label": "RC522" } },
+
+    { "type": "wokwi-pushbutton-6mm", "id": "btn1", "top": 92,  "left": -10, "attrs": { "color": "green", "xray": "1" } },
+    { "type": "wokwi-pushbutton-6mm", "id": "btn2", "top": 152, "left": -10, "attrs": { "color": "green", "xray": "1" } },
+    { "type": "wokwi-pushbutton-6mm", "id": "btn3", "top": 212, "left": -10, "attrs": { "color": "green", "xray": "1" } },
+
+    { "type": "wokwi-text", "id": "t1", "top": 70,  "left": -12, "attrs": { "text": "CNT-1001 (GPIO13) - Pátio A", "fontSize": "12" } },
+    { "type": "wokwi-text", "id": "t2", "top": 130, "left": -12, "attrs": { "text": "CNT-1002 (GPIO14) - Pátio B", "fontSize": "12" } },
+    { "type": "wokwi-text", "id": "t3", "top": 190, "left": -12, "attrs": { "text": "CNT-1003 (GPIO26) - Pátio C", "fontSize": "12" } },
+
+    { "type": "wokwi-resistor", "id": "rG", "top": 140, "left": 120, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledG", "top": 180, "left": 120, "attrs": { "color": "green" } },
+
+    { "type": "wokwi-resistor", "id": "rR", "top": 140, "left": 190, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "ledR", "top": 180, "left": 190, "attrs": { "color": "red" } }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
-    [ "esp:GND.1", "bb1:bn.5", "black", [] ],
-    [ "btn1:2.r", "esp:13", "green", [] ],
-    [ "btn2:2.r", "esp:14", "green", [] ],
-    [ "btn3:2.r", "esp:26", "green", [] ],
-    [ "btn1:1.l", "bb1:bn.10", "black", [] ],
-    [ "btn2:1.l", "bb1:bn.12", "black", [] ],
-    [ "btn3:1.l", "bb1:bn.14", "black", [] ],
-    [ "esp:25", "resG:1", "green", [] ],
-    [ "resG:2", "ledG:A", "green", [] ],
-    [ "ledG:K", "bb1:bn.20", "black", [] ],
-    [ "esp:33", "resR:1", "red", [] ],
-    [ "resR:2", "ledR:A", "red", [] ],
-    [ "ledR:K", "bb1:bn.22", "black", [] ]
+
+    [ "esp:GND.1", "bb1:bn.25", "black", [] ],
+
+    [ "rc522:3.3V", "esp:3V3",  "red",   [] ],
+    [ "rc522:GND",  "esp:GND.1","black", [] ],
+    [ "rc522:SDA",  "esp:5",    "green", [] ],
+    [ "rc522:SCK",  "esp:18",   "green", [] ],
+    [ "rc522:MOSI", "esp:23",   "green", [] ],
+    [ "rc522:MISO", "esp:19",   "green", [] ],
+    [ "rc522:RST",  "esp:27",   "green", [] ],
+
+    [ "btn1:1.l", "bb1:bn.20", "black", [] ],
+    [ "btn1:2.r", "esp:13",    "green", [] ],
+
+    [ "btn2:1.l", "bb1:bn.22", "black", [] ],
+    [ "btn2:2.r", "esp:14",    "green", [] ],
+
+    [ "btn3:1.l", "bb1:bn.24", "black", [] ],
+    [ "btn3:2.r", "esp:26",    "green", [] ],
+
+    [ "esp:25", "rG:1",   "green", [] ],
+    [ "rG:2",   "ledG:A", "green", [] ],
+    [ "ledG:K", "bb1:bn.18", "black", [] ],
+
+    [ "esp:33", "rR:1",   "red", [] ],
+    [ "rR:2",   "ledR:A", "red", [] ],
+    [ "ledR:K", "bb1:bn.26", "black", [] ]
   ],
   "dependencies": {}
 }
