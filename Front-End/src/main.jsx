@@ -10,7 +10,6 @@ import Relatorios from "./Pages/Relatorios.jsx";
 import Login from "./Pages/Login.jsx";
 import Register from "./Pages/Register.jsx";
 
-// Crie o roteador definindo o caminho para cada página
 const router = createBrowserRouter([
   {
     path: '/',
@@ -44,7 +43,7 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {/* Envolva seu aplicativo com o RouterProvider para usar as rotas */}
+    {}
     <RouterProvider router={router} />
   </StrictMode>,
 )
