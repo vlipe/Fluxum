@@ -22,9 +22,9 @@ const Dashboard = () => {
         </div>
 
 
-        <div className="w-full bg-white h-5/6 mt-6 rounded-xl flex flex-col pl-4">
+        <div className="w-[96%] bg-white h-5/6 mt-8 rounded-xl flex flex-col pl-4">
         <div className="mt-4 text-xl font-semibold text-indigo-900">Dashboard</div>
-        <div className="flex w-full justify-between bg-red-300 mt-4">
+        <div className="flex w-full justify-between bg-ared-300 mt-4">
             <div className="w-2/4 bg-indigo-100 rounded-2xl h-32"></div>
         </div>
         </div>
