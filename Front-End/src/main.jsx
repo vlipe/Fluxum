@@ -11,6 +11,7 @@ import Alertas from './Pages/Alertas.jsx';
 import Mapa from './Pages/Mapa.jsx';
 import Relatorios from './Pages/Relatorios.jsx';
 import Login from './Pages/Login.jsx';
+import Perfil from './Pages/Perfil.jsx';
 
 
 import PrivateRoute from './routes/PrivateRoute.jsx';
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
   { path: '/', element: <Home /> },
   { path: '/Login', element: <Login /> },
   { path: '/reset-password', element: <ResetPassword /> }, 
+  { path: '/Perfil', element: <Perfil /> },
 
   {
     element: <PrivateRoute />,

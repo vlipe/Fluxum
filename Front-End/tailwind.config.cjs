@@ -39,6 +39,8 @@ module.exports = {
         faq: '#494594',
         res: '#9F9CE8',
         bor: '#D9D9D9',
+        deletar: '#ECF2F9',
+        delete: '#F21D4E',
       },
     },
   },
