@@ -1,4 +1,6 @@
 import { useState } from "react";
+
+
 import { Link, useNavigate } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 import GitHub from "../assets/assetsLogin/github.png";
@@ -23,6 +25,19 @@ const Dashboard = () => {
 
   const { login, register } = useAuth();
   const navigate = useNavigate();
+
+  
+const API = import.meta.env.VITE_API_URL || "";
+
+
+const loginWithGoogle = () => {
+  window.location.href = `${API}/api/auth/google/start?mode=${isRegister ? 'register' : 'login'}`;
+};
+
+const loginWithGitHub = () => {
+  window.location.href = `${API}/api/auth/github/start?mode=${isRegister ? 'register' : 'login'}`;
+};
+
 
   async function handleSubmit() {
     setErr("");
@@ -96,23 +111,27 @@ const Dashboard = () => {
         </p>
 
         {!isForgot && (
-          <div className="flex gap-4 w-full mx-auto">
-            <button
-              className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-2 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
-              type="button"
-            >
-              <img src={Google} alt="Logo da Google" className="w-5 h-5" />
-              {isRegister ? "Cadastrar com Google" : "Login com Google"}
-            </button>
-            <button
-              className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-0.5 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
-              type="button"
-            >
-              <img src={GitHub} alt="Logo do GitHub" className="w-7 h-7 mr-1" />
-              {isRegister ? "Cadastrar com GitHub" : "Login com GitHub"}
-            </button>
-          </div>
-        )}
+  <div className="flex gap-4 w-full mx-auto">
+    <button
+      className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-2 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
+      type="button"
+      onClick={loginWithGoogle}
+    >
+      <img src={Google} alt="Logo da Google" className="w-5 h-5" />
+      {isRegister ? "Cadastrar com Google" : "Login com Google"}
+    </button>
+
+    <button
+      className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-0.5 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
+      type="button"
+      onClick={loginWithGitHub}
+    >
+      <img src={GitHub} alt="Logo do GitHub" className="w-7 h-7 mr-1" />
+      {isRegister ? "Cadastrar com GitHub" : "Login com GitHub"}
+    </button>
+  </div>
+)}
+
 
         <div className="w-full border-t-2 border-gray-200 mt-1 mb-6 relative text-gray-200 text-sm">
           <span className="absolute -top-3 bg-white px-2 left-1/2 -translate-x-1/2">

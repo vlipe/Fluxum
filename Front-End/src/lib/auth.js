@@ -60,7 +60,7 @@ async function rawFetch(path, { method = 'GET', body, headers = {}, auth = false
 
 
 export async function apiFetch(path, opts = {}) {
-  // 1ª tentativa
+  
   let { res, data } = await rawFetch(path, opts);
 
   if (res.status !== 401) {
@@ -110,8 +110,7 @@ export const AuthAPI = {
   },
 
   async me() {
-    
-    return apiFetch('/api/users/me', { auth: true });
+    return apiFetch(`/api/users/me?ts=${Date.now()}`, { auth: true });
   },
 
   async logout() {

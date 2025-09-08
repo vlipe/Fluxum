@@ -34,18 +34,26 @@ function signAccessToken(user) {
   return jwt.sign({ sub: user.id, role: user.role }, ACCESS_SECRET, { expiresIn: ACCESS_EXPIRES });
 }
 
-function refreshCookieOpts() {
-  const isProd = process.env.NODE_ENV === 'production';
-  const hasCrossSiteHttps =
-    FRONTEND_URLS.some(u => u.startsWith('https://') && !u.includes('localhost'));
-  const sameSite = hasCrossSiteHttps ? 'none' : 'lax';
-  const secure = hasCrossSiteHttps || isProd;
+function refreshCookieOpts(req) {
+  const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  const host = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const isLocal = proto === 'http' && (/^localhost:/.test(host) || /^127\.0\.0\.1:/.test(host));
+
+  const hasCrossSiteHttps = (process.env.FRONTEND_URL || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .some(u => u.startsWith('https://') && !u.includes('localhost'));
+
+  const sameSite = isLocal ? 'lax' : (hasCrossSiteHttps ? 'none' : 'lax');
+  const secure = isLocal ? false : (hasCrossSiteHttps || process.env.NODE_ENV === 'production');
+
   return {
     httpOnly: true,
     secure,
     sameSite,
     path: '/api/auth',
-    maxAge: REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000
+    maxAge: (parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10)) * 24 * 60 * 60 * 1000
   };
 }
 
@@ -93,7 +101,7 @@ router.post('/register', registerValidator, async (req, res) => {
   const familyId = uuid();
   const refreshToken = await createRefresh(user.id, familyId);
 
-  res.cookie('refreshToken', refreshToken, refreshCookieOpts());
+  res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
   return res.status(201).json({ user, accessToken, refreshToken });
 });
 
@@ -117,7 +125,7 @@ router.post('/login', loginValidator, async (req, res) => {
   const familyId = uuid();
   const refreshToken = await createRefresh(user.id, familyId);
 
-  res.cookie('refreshToken', refreshToken, refreshCookieOpts());
+  res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
   delete user.password_hash;
   return res.json({ user, accessToken, refreshToken });
 });
@@ -246,7 +254,7 @@ router.post('/refresh', async (req, res) => {
   const newRefresh = await rotateRefresh(row);
   const accessToken = signAccessToken(user);
 
-  res.cookie('refreshToken', newRefresh, refreshCookieOpts());
+  res.cookie('refreshToken', newRefresh, refreshCookieOpts(req));
   return res.json({ accessToken, refreshToken: newRefresh });
 });
 
