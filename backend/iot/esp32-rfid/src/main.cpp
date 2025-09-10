@@ -10,7 +10,7 @@
   const char* WIFI_PASS = "";
   const int   WIFI_CH   = 6;
 
-  // Cole aqui o host e o path do NGROK **HTTP** (NADA de https)
+
   const char* API_HOST  = "cockatoo-thorough-aardvark.ngrok-free.app";
   const int   API_PORT  = 80;
   const char* API_PATH  = "/api/container-events";
@@ -71,7 +71,7 @@ void wifiEnsure() {
   }
 }
 
-// ======= POST HTTP cru (sem TLS) =======
+// ======= POST HTTP =======
 bool postEventRaw(const String& payload) {
   if (WiFi.status()!=WL_CONNECTED) return false;
 
@@ -82,7 +82,7 @@ bool postEventRaw(const String& payload) {
     return false;
   }
 
-  // Monta request HTTP/1.1 manual
+  // Monta request HTTP
   String req;
   req  = String("POST ") + API_PATH + " HTTP/1.1\r\n";
   req += String("Host: ") + API_HOST + "\r\n";

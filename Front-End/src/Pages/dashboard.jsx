@@ -5,7 +5,7 @@ import LigarIot from "../assets/assetsDashboard/LigarIot.svg";
 import Termometro from "../assets/assetsDashboard/Frame 14.svg";
 import Megafone from "../assets/assetsDashboard/Frame 15.svg";
 import Caminhao from "../assets/assetsDashboard/Frame 16.svg";
-import { Chart } from "react-google-charts";
+
 import React from "react";
 
 export const data = [

@@ -6,10 +6,41 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const argon2 = require('argon2');
 
+
 const router = express.Router();
 
 const RAW_FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const FRONTEND_URLS = RAW_FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
+
+async function hasValidRefresh(req) {
+  const rt = req.cookies && req.cookies.refreshToken;
+  if (!rt) return false;
+  const q = await query(
+    'SELECT expires_at, revoked_at FROM refresh_tokens WHERE token=$1 LIMIT 1',
+    [rt]
+  );
+  if (q.rowCount === 0) return false;
+  const row = q.rows[0];
+  if (row.revoked_at) return false;
+  return new Date(row.expires_at).getTime() > Date.now();
+}
+
+
+function oauthTempCookieOpts(req) {
+  const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  const host  = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const isLocal = proto === 'http' && (host.startsWith('localhost:') || host.startsWith('127.0.0.1:'));
+
+  return {
+    httpOnly: true,
+   
+    sameSite: isLocal ? 'lax' : 'none',
+    secure:   isLocal ? false  : true,
+    path: '/api/auth',
+    maxAge: 10 * 60 * 1000
+  };
+}
+
 
 function pickFrontendBase(req) {
   const fromCookieG = req.cookies.g_front;
@@ -89,15 +120,27 @@ router.get('/google/start', async (req, res) => {
     const state = crypto.randomBytes(24).toString('hex');
 
     const cookieBasePath = '/api/auth';
-    const pkceOpts = { httpOnly: true, sameSite: 'lax', path: cookieBasePath, maxAge: 10 * 60 * 1000 };
+    const pkceOpts = oauthTempCookieOpts(req);
 
+   
     const frontBase = (req.headers.origin && FRONTEND_URLS.includes(req.headers.origin))
       ? req.headers.origin
       : pickFrontendBase(req);
 
-    res.cookie('g_pkce', code_verifier, pkceOpts);
-    res.cookie('g_state', state, pkceOpts);
-    res.cookie('g_front', frontBase, pkceOpts);
+   
+    res.clearCookie('g_pkce',  { path: cookieBasePath });
+    res.clearCookie('g_state', { path: cookieBasePath });
+    res.clearCookie('g_front', { path: cookieBasePath });
+
+   
+    res.cookie('g_pkce',  code_verifier, pkceOpts);
+    res.cookie('g_state', state,         pkceOpts);
+    res.cookie('g_front', frontBase,     pkceOpts);
+
+    
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     const authorizationUrl = client.authorizationUrl({
       scope: 'openid email profile',
@@ -115,6 +158,9 @@ router.get('/google/start', async (req, res) => {
   }
 });
 
+
+
+
 router.get('/google/callback', async (req, res) => {
   try {
     const client = await getGoogleClient(req);
@@ -122,29 +168,46 @@ router.get('/google/callback', async (req, res) => {
 
     const cookieBasePath = '/api/auth';
     const code_verifier = req.cookies.g_pkce;
-    const state = req.cookies.g_state;
-    const frontBase = req.cookies.g_front;
+    const stateCookie   = req.cookies.g_state;
+    const frontBase     = req.cookies.g_front;
 
-    res.clearCookie('g_pkce', { path: cookieBasePath });
+    // Log útil
+    req.log?.warn?.({
+      hasPkce: !!code_verifier,
+      stateCookie,
+      stateParam: params.state
+    }, 'google/callback state check');
+
+   
+    res.clearCookie('g_pkce',  { path: cookieBasePath });
     res.clearCookie('g_state', { path: cookieBasePath });
     res.clearCookie('g_front', { path: cookieBasePath });
 
-    if (!code_verifier || !state || state !== params.state) {
+    
+    if (!code_verifier || !stateCookie || stateCookie !== params.state) {
+      
+      if (await hasValidRefresh(req)) {
+        const base = frontBase || pickFrontendBase(req);
+        return res.redirect(`${base.replace(/\/+$/, '')}/oauth/success`);
+      }
       return res.status(400).send('State/PKCE inválidos');
     }
 
+    
     const tokenSet = await client.callback(
       `${apiBase(req)}/api/auth/google/callback`,
       params,
-      { code_verifier, state }
+      { code_verifier, state: stateCookie }
     );
 
     const claims = tokenSet.claims();
     const email = String(claims.email || '').toLowerCase().trim();
-    const name = claims.name || claims.given_name || 'Usuário';
-    const emailVerified = !!claims.email_verified;
-    if (!email || !emailVerified) return res.status(400).send('Email ausente ou não verificado no Google');
+    const name  = claims.name || claims.given_name || 'Usuário';
+    if (!email || !claims.email_verified) {
+      return res.status(400).send('Email ausente ou não verificado no Google');
+    }
 
+   
     const found = await query('SELECT id, name, email, role FROM users WHERE email=$1 LIMIT 1', [email]);
     let user;
     if (found.rowCount) {
@@ -164,8 +227,9 @@ router.get('/google/callback', async (req, res) => {
       user = ins.rows[0];
     }
 
-    const accessToken = signAccessToken(user);
-    const familyId = uuid();
+    
+    const accessToken  = signAccessToken(user);
+    const familyId     = uuid();
     const refreshToken = await createRefresh(user.id, familyId);
     res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
 
@@ -177,18 +241,43 @@ router.get('/google/callback', async (req, res) => {
   }
 });
 
-const fetchFn = globalThis.fetch ? globalThis.fetch.bind(globalThis) : require('node-fetch');
+
+
+let fetchFn = globalThis.fetch ? globalThis.fetch.bind(globalThis) : null;
+if (!fetchFn) {
+  try {
+
+    fetchFn = require('node-fetch');
+  } catch {
+  
+    fetchFn = require('undici').fetch;
+  }
+}
+
 
 router.get('/github/start', async (req, res) => {
   try {
     const state = generators.state();
     const cookieBasePath = '/api/auth';
-    res.cookie('gh_state', state, { httpOnly: true, sameSite: 'lax', path: cookieBasePath, maxAge: 10 * 60 * 1000 });
+    const tmpOpts = oauthTempCookieOpts(req);
 
     const frontBase = (req.headers.origin && FRONTEND_URLS.includes(req.headers.origin))
       ? req.headers.origin
       : pickFrontendBase(req);
-    res.cookie('gh_front', frontBase, { httpOnly: true, sameSite: 'lax', path: cookieBasePath, maxAge: 10 * 60 * 1000 });
+
+    
+    res.clearCookie('g_pkce',   { path: cookieBasePath });
+    res.clearCookie('g_state',  { path: cookieBasePath });
+    res.clearCookie('g_front',  { path: cookieBasePath });
+    res.clearCookie('gh_state', { path: cookieBasePath });
+    res.clearCookie('gh_front', { path: cookieBasePath });
+
+    res.cookie('gh_state', state,     tmpOpts);
+    res.cookie('gh_front', frontBase, tmpOpts);
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
 
     const params = new URLSearchParams({
       client_id: process.env.GITHUB_CLIENT_ID,
@@ -204,6 +293,8 @@ router.get('/github/start', async (req, res) => {
   }
 });
 
+
+
 router.get('/github/callback', async (req, res) => {
   try {
     const { code, state } = req.query || {};
@@ -211,10 +302,16 @@ router.get('/github/callback', async (req, res) => {
     const stateCookie = req.cookies.gh_state;
     const frontBase = req.cookies.gh_front;
 
+    req.log?.warn?.({ stateCookie, stateParam: state }, 'github/callback state check');
+
     res.clearCookie('gh_state', { path: cookieBasePath });
     res.clearCookie('gh_front', { path: cookieBasePath });
 
     if (!code || !state || state !== stateCookie) {
+      if (await hasValidRefresh(req)) {
+        const base = frontBase || pickFrontendBase(req);
+        return res.redirect(`${base.replace(/\/+$/, '')}/oauth/success`);
+      }
       return res.status(400).send('State inválido');
     }
 

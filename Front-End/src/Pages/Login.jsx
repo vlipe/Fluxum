@@ -1,7 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-
-import { Link, useNavigate } from "react-router-dom";
 import Logo from "../assets/logo.svg";
 import GitHub from "../assets/assetsLogin/github.png";
 import Google from "../assets/assetsLogin/google.png";
@@ -11,8 +9,13 @@ import Calendário from "../assets/assetsLogin/calendario.png";
 import Seta from "../assets/assetsLogin/seta.png";
 import Container from "../assets/assetsLogin/container.png";
 import { useAuth } from "../context/AuthContext";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 const Dashboard = () => {
+
+  const location = useLocation();
+  const navigate = useNavigate();
+
   const [isRegister, setIsRegister] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -24,19 +27,43 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
 
   const { login, register } = useAuth();
-  const navigate = useNavigate();
-
-  
-const API = import.meta.env.VITE_API_URL || "";
 
 
-const loginWithGoogle = () => {
-  window.location.href = `${API}/api/auth/google/start?mode=${isRegister ? 'register' : 'login'}`;
-};
 
-const loginWithGitHub = () => {
-  window.location.href = `${API}/api/auth/github/start?mode=${isRegister ? 'register' : 'login'}`;
-};
+  const API = import.meta.env.VITE_API_URL || "";
+
+  const [oauthRedirecting, setOauthRedirecting] = useState(false);
+
+  const loginWithGoogle = () => {
+    if (oauthRedirecting) return;
+    setOauthRedirecting(true);
+    const t = Date.now();
+    window.location.assign(`${API}/api/auth/google/start?mode=${isRegister ? 'register' : 'login'}&t=${t}`);
+  };
+
+  const loginWithGitHub = () => {
+    if (oauthRedirecting) return;
+    setOauthRedirecting(true);
+    const t = Date.now();
+    window.location.assign(`${API}/api/auth/github/start?mode=${isRegister ? 'register' : 'login'}&t=${t}`);
+  };
+
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    const mode = q.get("mode");
+    if (mode === "register") { setIsRegister(true); setIsForgot(false); }
+    else if (mode === "forgot") { setIsForgot(true); setIsRegister(false); }
+    else { setIsRegister(false); setIsForgot(false); }
+  }, [location.search]);
+
+  function goMode(mode) {
+    setErr("");
+    setIsForgot(mode === "forgot");
+    setIsRegister(mode === "register");
+    navigate(`/Login?mode=${mode}`, { replace: true });
+  }
+
+
 
 
   async function handleSubmit() {
@@ -53,18 +80,22 @@ const loginWithGitHub = () => {
     setLoading(true);
     try {
       if (isRegister) {
-        await register({ name: n, email: em, password: pw }, rememberMe);
-      } else {
-        await login({ email: em, password: pw }, rememberMe);
+        await register({ name: n, email: em, password: pw });
+        setIsRegister(false);
+        setPassword("");
+        setErr("Cadastro realizado! Agora faça o login.");
+        return;
       }
-      navigate("/Dashboard");
+
+      // login normal
+      await login({ email: em, password: pw }, rememberMe);
+      navigate("/Dashboard", { replace: true });
     } catch (e) {
       setErr(e?.message || "Erro ao autenticar");
     } finally {
       setLoading(false);
     }
   }
-
   async function handleForgotSubmit() {
     setErr("");
     const em = email.trim();
@@ -98,39 +129,43 @@ const loginWithGitHub = () => {
           {isForgot
             ? "Recuperar acesso"
             : isRegister
-            ? "Olá, seja bem-vindo(a)!"
-            : "Bem-vindo (a) de volta!"}
+              ? "Olá, seja bem-vindo(a)!"
+              : "Bem-vindo (a) de volta!"}
         </h1>
 
         <p className="text-roxo text-sm w-80">
           {isForgot
             ? "Digite seu e-mail para enviarmos o link de redefinição."
             : isRegister
-            ? "Estamos felizes por ver você aqui! Crie sua conta preenchendo os campos abaixo."
-            : "Estamos felizes por ver você aqui novamente! Por favor, preencha os campos."}
+              ? "Estamos felizes por ver você aqui! Crie sua conta preenchendo os campos abaixo."
+              : "Estamos felizes por ver você aqui novamente! Por favor, preencha os campos."}
         </p>
 
         {!isForgot && (
-  <div className="flex gap-4 w-full mx-auto">
-    <button
-      className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-2 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
-      type="button"
-      onClick={loginWithGoogle}
-    >
-      <img src={Google} alt="Logo da Google" className="w-5 h-5" />
-      {isRegister ? "Cadastrar com Google" : "Login com Google"}
-    </button>
+          <div className="flex gap-4 w-full mx-auto">
+            <button
+              className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-2 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
+              type="button"
+              onClick={loginWithGoogle}
+              disabled={oauthRedirecting}
+            >
+              <img src={Google} alt="Logo da Google" className="w-5 h-5" />
+              {isRegister ? "Cadastrar com Google" : "Login com Google"}
 
-    <button
-      className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-0.5 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
-      type="button"
-      onClick={loginWithGitHub}
-    >
-      <img src={GitHub} alt="Logo do GitHub" className="w-7 h-7 mr-1" />
-      {isRegister ? "Cadastrar com GitHub" : "Login com GitHub"}
-    </button>
-  </div>
-)}
+            </button>
+
+            <button
+              className="flex-1 text-xs py-2 px-4 text-azulEscuro border-2 border rounded-2xl flex items-center justify-center gap-0.5 hover:text-roxo hover:bg-white hover:border-white transition-colors duration-300"
+              type="button"
+              onClick={loginWithGitHub}
+              disabled={oauthRedirecting}
+            >
+              <img src={GitHub} alt="Logo do GitHub" className="w-7 h-7 mr-1" />
+              {isRegister ? "Cadastrar com GitHub" : "Login com GitHub"}
+
+            </button>
+          </div>
+        )}
 
 
         <div className="w-full border-t-2 border-gray-200 mt-1 mb-6 relative text-gray-200 text-sm">
@@ -203,12 +238,7 @@ const loginWithGitHub = () => {
             <a
               href="#"
               className="text-sm text-roxo hover:text-indigo-700 duration-300"
-              onClick={(e) => {
-                e.preventDefault();
-                setErr("");
-                setIsForgot(true);
-                setIsRegister(false);
-              }}
+              onClick={(e) => { e.preventDefault(); goMode("forgot"); }}
             >
               Esqueceu a senha?
             </a>
@@ -218,11 +248,7 @@ const loginWithGitHub = () => {
             <a
               href="#"
               className="text-sm text-roxo hover:text-indigo-700 duration-300 ml-auto"
-              onClick={(e) => {
-                e.preventDefault();
-                setErr("");
-                setIsForgot(false);
-              }}
+              onClick={(e) => { e.preventDefault(); goMode("login"); }}
             >
               Voltar ao login
             </a>
@@ -240,8 +266,8 @@ const loginWithGitHub = () => {
           {isForgot
             ? (loading ? "Enviando..." : "Enviar e-mail")
             : isRegister
-            ? (loading ? "Cadastrando..." : "Cadastrar")
-            : (loading ? "Entrando..." : "Entrar")}
+              ? (loading ? "Cadastrando..." : "Cadastrar")
+              : (loading ? "Entrando..." : "Entrar")}
         </button>
 
         {!isForgot && (
@@ -252,9 +278,8 @@ const loginWithGitHub = () => {
               className="underline text-roxo hover:text-azulEscuro duration-300"
               onClick={(e) => {
                 e.preventDefault();
-                setIsRegister(!isRegister);
-                setIsForgot(false);
                 setErr("");
+                goMode(isRegister ? "login" : "register");
               }}
             >
               {isRegister ? "Entre" : "Cadastre-se"}

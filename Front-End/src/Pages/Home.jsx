@@ -13,6 +13,7 @@ import F12 from "../assets/assetsHome/Frame 12.svg";
 import F13 from "../assets/assetsHome/Frame 13.svg";
 import F14 from "../assets/assetsHome/Frame 14.svg";
 
+
 import FaqComponent from "../Components/FaqComponent";
 import Footer from "../Components/Footer";
 
@@ -191,31 +192,19 @@ const App = () => {
           </div>
         </div>
         <div className="bg-white w-3/12 flex h-[54px] justify-between my-auto xl:w-4/12 2xl:w-3/12">
-          <Link
-            to="/Register"
-            component={RouterLink}
-            underline="none"
-            className="py-2 rounded-e-lg flex  text-violeta text-lg items-center bg-puarple-900"
-          >
-            <div
-              className="hover:text-violeta transition-all duration-500 h-[54px] font-medium text-xs flex justify-center items-center
-           text-login bg-swhite lg:mr-2 lg:text-base xl:text-base 2xl:mr-4 bg-read-700"
-            >
-              Cadastre-se
-            </div>
-          </Link>
+           <Link to={{ pathname: "/Login", search: "?mode=register" }} component={RouterLink} underline="none" className="py-2 rounded-e-lg flex  text-violeta text-lg items-center bg-puarple-900">
+   <div className="hover:text-violeta transition-all duration-500 h-[54px] font-medium text-xs flex justify-center items-center
+            text-login bg-swhite lg:mr-2 lg:text-base xl:text-base 2xl:mr-4 bg-read-700">
+     Cadastre-se
+   </div>
+ </Link>
 
-          <Link to="/Login"
-          component={RouterLink}
-          underline="none"
-          className="w-6/12 h-[54px]">
-          <div
-            className="hover:text-indigo-500 transition-all duration-500 hover:bg-white hover:border-2 hover:border-violeta
-           border-violeta border-2 bg-violeta w-full h-[54px] font-medium flex justify-center items-center text-white rounded-2xl lg:text-base xl:text-base"
-          >
-            Login
-          </div>
-          </Link>
+          <Link to={{ pathname: "/Login", search: "?mode=login" }} component={RouterLink} underline="none" className="w-6/12 h-[54px]">
+   <div className="hover:text-indigo-500 transition-all duration-500 hover:bg-white hover:border-2 hover:border-violeta
+            border-violeta border-2 bg-violeta w-full h-[54px] font-medium flex justify-center items-center text-white rounded-2xl lg:text-base xl:text-base">
+     Login
+   </div>
+ </Link>
         </div>
       </div>
       {/* Final do código da navbar desktop */}
@@ -315,28 +304,16 @@ const App = () => {
             Relatórios
           </Link>
         </div>
-        <Link
-          to="/Login"
-          component={RouterLink}
-          fontSize={18}
-          color="white"
-          underline="none"
-        >
-          <div className="bg-violeta w-5/6 mx-auto h-12 mt-10 items-center absolute bottom-24 flex justify-center rounded-xl text-xl left-1/2 -translate-x-1/2 border-2 font-semibold hover:bg-white hover:text-indigo-500 hover:border-indigo-500 transition-all duration-700">
-            Login
-          </div>
-        </Link>
-        <Link
-          to="/Login"
-          component={RouterLink}
-          fontSize={18}
-          color="white"
-          underline="none"
-        >
-          <div className="bg-white w-5/6 mx-auto h-12 mt-6 items-center bottom-8 absolute flex justify-center left-1/2 -translate-x-1/2 text-indigo-500 rounded-xl text-xl font-semibold border-2 border-white hover:border-indigo-500 transition-all duration-700">
-            Cadastrar-se
-          </div>
-        </Link>
+        <Link to={{ pathname: "/Login", search: "?mode=login" }} component={RouterLink} fontSize={18} color="white" underline="none">
+  <div className="bg-violeta w-5/6 mx-auto h-12 mt-10 items-center absolute bottom-24 flex justify-center rounded-xl text-xl left-1/2 -translate-x-1/2 border-2 font-semibold hover:bg-white hover:text-indigo-500 hover:border-indigo-500 transition-all duration-700">
+    Login
+  </div>
+</Link>
+        <Link to={{ pathname: "/Login", search: "?mode=register" }} component={RouterLink} fontSize={18} color="white" underline="none">
+  <div className="bg-white w-5/6 mx-auto h-12 mt-6 items-center bottom-8 absolute flex justify-center left-1/2 -translate-x-1/2 text-indigo-500 rounded-xl text-xl font-semibold border-2 border-white hover:border-indigo-500 transition-all duration-700">
+    Cadastrar-se
+  </div>
+</Link>
       </div>
 
       {/* final do código referente a sidebar mobile aberta */}

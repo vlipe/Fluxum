@@ -91,14 +91,15 @@ export async function apiFetch(path, opts = {}) {
 
 
 export const AuthAPI = {
-  async register({ name, email, password }, remember) {
-    const data = await apiFetch('/api/auth/register', {
-      method: 'POST',
-      body: { name, email, password }
-    });
-    if (data?.accessToken) storage.set(data.accessToken, remember);
-    return data;
-  },
+  async register({ name, email, password }) {
+  const data = await apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: { name, email, password }
+  });
+  
+  return data;
+},
+
 
   async login({ email, password }, remember) {
     const data = await apiFetch('/api/auth/login', {

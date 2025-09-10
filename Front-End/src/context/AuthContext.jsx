@@ -42,12 +42,12 @@ export function AuthProvider({ children }) {
       setUser(u);
       setStatus("authed");
     },
-    async register({ name, email, password }, remember) {
-      await AuthAPI.register({ name, email, password }, remember);
-      const u = await AuthAPI.me();
-      setUser(u);
-      setStatus("authed");
-    },
+   async register({ name, email, password }) {
+  await AuthAPI.register({ name, email, password });
+  setUser(null);
+  setStatus("guest");
+},
+
     async logout() {
       await AuthAPI.logout();
       setUser(null);

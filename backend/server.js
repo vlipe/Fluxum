@@ -19,8 +19,10 @@ const statsRoutes = require('./routes/stats.routes');
 const oauthRoutes = require('./routes/oauth.routes');
 
 const app = express();
+app.set('trust proxy', 1);
 
 const FRONTEND_URLS = (process.env.FRONTEND_URL || 'http://localhost:5173')
+
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
@@ -42,13 +44,15 @@ metricsRoute(app);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
 // Rotas
-app.use('/api/auth', authRoutes);   // /login, /register, /forgot-password, /refresh, etc.
-app.use('/api/auth', oauthRoutes);  // /google/start, /google/callback, /github/start, /github/callback
+app.use('/api/auth', authRoutes);  
+app.use('/api/auth', oauthRoutes); 
 app.use('/api/users', usersRoutes);
 app.use('/api', containerRoutes);
 app.use('/api', statsRoutes);
+app.set('trust proxy', 1);
 
-// 404 e erro
+
+
 app.use((req, res) => res.status(404).json({ error: 'Not Found' }));
 app.use((err, _req, res, _next) => {
   logger.error({ err }, 'Unhandled error');

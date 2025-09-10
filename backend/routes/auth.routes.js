@@ -77,6 +77,7 @@ async function rotateRefresh(oldRow) {
   return createRefresh(oldRow.user_id, oldRow.family_id);
 }
 
+
 // Registro
 router.post('/register', registerValidator, async (req, res) => {
   const errors = validationResult(req);
@@ -97,13 +98,9 @@ router.post('/register', registerValidator, async (req, res) => {
   );
   const user = insert.rows[0];
 
-  const accessToken = signAccessToken(user);
-  const familyId = uuid();
-  const refreshToken = await createRefresh(user.id, familyId);
-
-  res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
-  return res.status(201).json({ user, accessToken, refreshToken });
+  return res.status(201).json({ user });
 });
+
 
 // Login
 router.post('/login', loginValidator, async (req, res) => {
