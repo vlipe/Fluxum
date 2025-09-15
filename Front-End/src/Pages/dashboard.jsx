@@ -7,20 +7,20 @@ import Megafone from "../assets/assetsDashboard/Frame 15.svg";
 import Caminhao from "../assets/assetsDashboard/Frame 16.svg";
 
 import React from "react";
-import { Doughnut } from 'react-chartjs-2';
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Doughnut } from "react-chartjs-2";
+import { Chart as ChartJS, ArcElement, Tooltip, Legend } from "chart.js";
 
 // Registra os componentes necessários
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 // Plugin para tornar o fundo do gráfico transparente
 const transparentBackgroundPlugin = {
-  id: 'customCanvasBackgroundColor',
+  id: "customCanvasBackgroundColor",
   beforeDraw: (chart) => {
     const { ctx } = chart;
     ctx.save();
-    ctx.globalCompositeOperation = 'destination-over';
-    ctx.fillStyle = 'rgba(0,0,0,0)'; // Cor transparente
+    ctx.globalCompositeOperation = "destination-over";
+    ctx.fillStyle = "rgba(0,0,0,0)"; // Cor transparente
     ctx.fillRect(0, 0, chart.width, chart.height);
     ctx.restore();
   },
@@ -28,45 +28,45 @@ const transparentBackgroundPlugin = {
 
 // Plugin para desenhar o texto no centro do gráfico
 const centerTextPlugin = {
-  id: 'centerText',
+  id: "centerText",
   beforeDraw: (chart) => {
     const { width, height, ctx } = chart;
     ctx.save();
 
     const occupiedData = chart.config.data.datasets[0].data[0];
-    const totalData = chart.config.data.datasets[0].data.reduce((a, b) => a + b, 0);
+    const totalData = chart.config.data.datasets[0].data.reduce(
+      (a, b) => a + b,
+      0
+    );
     const percentage = ((occupiedData / totalData) * 100).toFixed(0);
 
     const text = `${percentage}%`;
-
 
     // Calcula a posição central do gráfico
     const centerX = width / 2;
     const centerY = height / 2;
 
     // Define a fonte e alinha o texto ao centro
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
 
     // Desenha a porcentagem
-    ctx.font = '24px sans-serif';
-    ctx.fillStyle = '#3E41C0';
+    ctx.font = "18px sans-serif";
+    ctx.fillStyle = "#3E41C0";
     ctx.fillText(text, centerX, centerY);
-
-
 
     ctx.restore();
   },
 };
 
 const data = {
-  labels: ['Bateria disponível', 'Bateria consumida'],
+  labels: ["Bateria disponível", "Bateria consumida"],
   datasets: [
     {
-      label: '%',
+      label: "%",
       data: [75, 25], // Dois dados para o gráfico de rosquinha
-      backgroundColor: ['#3E41C0', '#FFFFFF'], // Roxo e Cinza
-      borderColor: ['#FFFFFF'],
+      backgroundColor: ["#3E41C0", "#FFFFFF"], 
+      borderColor: ["#FFFFFF"],
       borderWidth: 0,
     },
   ],
@@ -74,7 +74,7 @@ const data = {
 
 const options = {
   responsive: true,
-  cutout: '70%', // Define o tamanho do centro do anel
+  cutout: "70%", // Define o tamanho do centro do anel
   plugins: {
     legend: {
       display: false, // Remove a legenda
@@ -85,25 +85,22 @@ const options = {
   },
 };
 
-
-
 const Dashboard = () => {
   return (
-    <div className="flex min-w-full min-h-svh bg-indigo-50 h-svh justify-between">
+    <div className="flex min-w-full min-h-screen bg-indigo-50 justify-between">
       <Sidebar2 />
-      <div className=" bga-red-400 w-9/12">
-        <div className="w-full bag-yellow-200 mt-10 flex justify-center items-center">
+      <div className=" w-9/12">
+        <div className="w-full bag-yellow-200 mt-6 flex justify-center items-center">
           <div className="text-lg">Oi, Felipe!</div>
 
-          <div className="w-7/12 h-10 rounded-3xl bg-white ml-4">
-            <SearchIcon
-              className="text-gray-400/80 mx-auto rounded-lg bg-read-500 my-auto"
-              style={{ fontSize: "2rem", marginLeft: "10", marginTop: "4" }}
-            />
-          </div>
+          <input
+            type="text"
+            placeholder="Pesquisar"
+            className="w-7/12 h-10 rounded-3xl bg-white ml-4 relative pl-4 hover:border-2 hover:border-violeta"
+          />
         </div>
 
-        <div className="w-[96%] bg-white h-[85%] mt-8 rounded-xl flex flex-col px-4">
+        <div className="w-[96%] bg-white mt-8 rounded-xl flex flex-col px-4 pb-10 mb-8">
           <div className="mt-4 text-xl font-semibold text-indigo-900">
             Dashboard
           </div>
@@ -118,7 +115,7 @@ const Dashboard = () => {
               <img
                 src={LigarIot}
                 alt="Bootão para Ligar Iot"
-                className="w-16 my-auto"
+                className="w-14 my-auto"
               />
               <div className="text-lg font-medium text-slate-900">
                 Conectar Iot
@@ -148,9 +145,23 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="bg-indigo-100 w-full h-44 rounded-3xl py-6 pl-4 ">
+            <div className="bg-indigo-100 w-full h-28 rounded-3xl py-4 pl-4 flex justify-between
+            sm:h-28">
+              <div className="h-20">
               {""}
-              <Doughnut data={data} options={options} plugins={[transparentBackgroundPlugin, centerTextPlugin]} />
+              <Doughnut
+                data={data}
+                options={options}
+                plugins={[transparentBackgroundPlugin, centerTextPlugin]}
+              />
+              </div>
+              <div className="flex w-7/12 text-azulEscuro flex-col my-auto">
+                <div className="text-lg font-semibold">Bateria da Iot</div>
+                <div className="text-xs mt-1 text-gray-600/70">
+                  Duração aproximada{" "}
+                  <span className="font-semibold text-slate-950 text-sm">{"28h"}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
