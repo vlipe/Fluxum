@@ -27,7 +27,7 @@ import F9 from "../assets/assetsHome/CelularH.svg";
 const Sidebar2 = () => {
   return (
     <div className="bg-white w-2/12 rounded-2xl flex flex-col justify-between my-6 mb-12 ml-4
-    sm:mb-16 sm:w-24">
+    sm:mb-22 sm:w-24 ">
       <div className="w-full  h-3/6 mt-2 text-white flex flex-col gap-y-4 items-center">
         <img src={Logo} alt="" className=" mb-4" />
 

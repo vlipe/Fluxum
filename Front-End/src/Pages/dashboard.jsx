@@ -65,7 +65,7 @@ const data = {
     {
       label: "%",
       data: [75, 25], // Dois dados para o gráfico de rosquinha
-      backgroundColor: ["#3E41C0", "#FFFFFF"], 
+      backgroundColor: ["#3E41C0", "#FFFFFF"],
       borderColor: ["#FFFFFF"],
       borderWidth: 0,
     },
@@ -91,75 +91,151 @@ const Dashboard = () => {
       <Sidebar2 />
       <div className=" w-9/12">
         <div className="w-full bag-yellow-200 mt-6 flex justify-center items-center">
-          <div className="text-lg">Oi, Felipe!</div>
+          <div
+            className="text-lg
+          sm:text-xl"
+          >
+            Oi, Felipe!
+          </div>
 
           <input
             type="text"
             placeholder="Pesquisar"
-            className="w-7/12 h-10 rounded-3xl bg-white ml-4 relative pl-4 hover:border-2 hover:border-violeta"
+            className="w-7/12 h-10 rounded-3xl bg-white ml-4 relative pl-4
+            sm:h-12"
           />
         </div>
 
         <div className="w-[96%] bg-white mt-8 rounded-xl flex flex-col px-4 pb-10 mb-8 h-5/6">
-          <div className="mt-4 text-xl font-semibold text-indigo-900">
+          <div
+            className="mt-4 text-xl font-semibold text-indigo-900
+          sm:text-2xl sm:ml-2"
+          >
             Dashboard
           </div>
           <div className="flex flex-col w-full justify-between bg-ared-300 mt-8 gap-y-3">
-            <div className="w-full mx-auto bg-indigo-100 rounded-3xl h-20 flex justify-between items-center px-6">
-              <div className="text-violeta text-4xl font-bold ml-2">157</div>
-              <div className="text-lg font-medium text-slate-900">
+            <div
+              className="w-full mx-auto bg-indigo-100 rounded-3xl h-20 flex justify-between items-center px-6
+            sm:h-24 sm:px-8"
+            >
+              <div
+                className="text-violeta text-4xl font-bold ml-2
+              sm:text-5xl"
+              >
+                157
+              </div>
+              <div
+                className="text-lg font-medium text-slate-900
+              sm:text-2xl"
+              >
                 Containers
               </div>
             </div>
-            <div className="bg-indigo-100 w-full h-20 rounded-3xl flex px-6 items-center justify-between">
+            <div
+              className="bg-indigo-100 w-full h-20 rounded-3xl flex px-6 items-center justify-between
+            sm:h-24 sm:px-8"
+            >
               <img
                 src={LigarIot}
                 alt="Bootão para Ligar Iot"
-                className="w-14 my-auto"
+                className="w-14 my-auto
+                sm:w-20"
               />
-              <div className="text-lg font-medium text-slate-900">
+              <div
+                className="text-lg font-medium text-slate-900
+              sm:text-2xl"
+              >
                 Conectar Iot
               </div>
             </div>
             <div className="bg-indigo-100 w-full h-72 rounded-3xl flex px-1 flex-col mt-3">
-              <div className="flex w-full h-1/3 justify-between items-center px-2">
+              <div
+                className="flex w-full h-1/3 justify-between items-center px-2
+              sm:justify-between sm:gap-x-12"
+              >
                 <img
                   src={Termometro}
-                  className="w-14"
+                  className="w-14 sm:hidden"
                   alt="Termometro referente a temperatua de containers"
                 />
-                <div className="text-sm text-violeta font-medium">
+                <div
+                  className="text-sm text-violeta font-medium
+                sm:hidden"
+                >
                   Temperatura elevada
                 </div>
-              </div>
-              <div className="flex w-full h-1/3 justify-between items-center px-2">
-                <img src={Megafone} className="w-14" alt="Alerta" />
-                <div className="text-sm text-violeta font-medium">
-                  Rota desviada
+                <div className="hidden sm:flex h-full items-center">
+                  {" "}
+                  <img
+                    src={Termometro}
+                    className="w-14 "
+                    alt="Termometro referente a temperatua de containers"
+                  />
+                  <div className="text-base text-violeta font-medium ml-3">
+                    Temperatura elevada
+                  </div>
+                </div>
+                <div className="hidden sm:flex text-violeta font-normal">
+                  30min atrás
                 </div>
               </div>
               <div className="flex w-full h-1/3 justify-between items-center px-2">
-                <img src={Caminhao} className="w-14" alt="Alerta rota" />
-                <div className="text-sm text-violeta font-medium">
+                <img src={Megafone} className="w-14 sm:hidden" alt="Alerta" />
+                <div className="text-sm text-violeta font-medium sm:hidden">
+                  Rota desviada
+                </div>
+                <div className="hidden sm:flex items-center">
+                  {" "}
+                  <img src={Megafone} className="w-14" alt="Alerta" />
+                  <div className="text-base text-violeta font-medium ml-3">
+                    Rota desviada
+                  </div>
+                </div>
+                <div className="hidden sm:flex text-violeta font-normal">
+                  30min atrás
+                </div>
+              </div>
+              <div className="flex w-full h-1/3 justify-between items-center px-2">
+                <img
+                  src={Caminhao}
+                  className="w-14 sm:hidden"
+                  alt="Alerta rota"
+                />
+                <div className="text-sm text-violeta font-medium sm:hidden">
                   Rota concluída
+                </div>
+                <div className="hidden sm:flex justify-between items-center">
+                  <img src={Caminhao} className="w-14" alt="Alerta rota" />
+                  <div className="text-base text-violeta font-medium ml-3">
+                    Rota concluída
+                  </div>
+                </div>
+                <div className="hidden sm:flex text-violeta font-normal">
+                  30min atrás
                 </div>
               </div>
             </div>
-            <div className="bg-indigo-100 w-full h-28 rounded-3xl py-4 pl-4 mt-4 flex justify-between
-            sm:h-28">
-              <div className="h-20">
-              {""}
-              <Doughnut
-                data={data}
-                options={options}
-                plugins={[transparentBackgroundPlugin, centerTextPlugin]}
-              />
+            <div
+              className="bg-indigo-100 w-full h-28 rounded-3xl py-4 pl-4 mt-4 flex justify-between
+            sm:h-36"
+            >
+              <div className="h-20
+              sm:h-28">
+                {""}
+                <Doughnut
+                  data={data}
+                  options={options}
+                  plugins={[transparentBackgroundPlugin, centerTextPlugin]}
+                />
               </div>
               <div className="flex w-7/12 text-azulEscuro flex-col my-auto">
-                <div className="text-lg font-semibold">Bateria da Iot</div>
+                <div className="text-lg font-semibold
+                sm:text-2xl">Bateria da Iot</div>
                 <div className="text-xs mt-1 text-gray-600/70">
                   Duração aproximada{" "}
-                  <span className="font-semibold text-slate-950 text-sm">{"28h"}</span>
+                  <span className="font-semibold text-slate-950 text-sm">
+                    {"28h"}
+                  </span>
                 </div>
               </div>
             </div>
