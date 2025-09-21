@@ -87,7 +87,7 @@ const options = {
 
 const Dashboard = () => {
   return (
-    <div className="flex min-w-full min-h-screen bg-indigo-50 justify-between">
+    <div className="flex min-w-full min-h-screen bg-deletar justify-between">
       <Sidebar2 />
       <div className=" w-9/12">
         <div className="w-full bag-yellow-200 mt-6 flex justify-center items-center">

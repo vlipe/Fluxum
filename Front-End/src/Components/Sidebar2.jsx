@@ -1,113 +1,154 @@
-import { Link as RouterLink } from "react-router-dom";
-import Logo from "../assets/logo.svg";
-
-import HomeOutline from "@mui/icons-material/HomeOutlined";
-import DashboardRoundedIcon from "@mui/icons-material/DashboardRounded";
-import NotificationsActiveRoundedIcon from "@mui/icons-material/NotificationsActiveRounded";
-import MapIcon from "@mui/icons-material/Map";
-import AssessmentOutlinedIcon from "@mui/icons-material/AssessmentOutlined";
+import { Link as RouterLink, useLocation } from "react-router-dom";
+import { useState } from "react";
 import Link from "@mui/material/Link";
-import Avatar from "@mui/material/Avatar";
+import Logo from "../assets/logo.svg";
+import Foto from "../assets/assetsLogin/usuario.png";
 
-import Icon from "@mdi/react";
-import { mdiCubeOutline } from "@mdi/js";
+// SVGs normais e hover
+import Caixa from "../assets/assetsDashboard/caixa.svg";
+import Caixa2 from "../assets/assetsDashboard/caixa2.svg";
 
-import { mdiChartDonut } from "@mdi/js";
+import Grafico from "../assets/assetsDashboard/grafico.svg";
+import Grafico2 from "../assets/assetsDashboard/grafico2.svg";
 
-import { mdiBellOutline } from "@mdi/js";
+import Mapa from "../assets/assetsDashboard/mapa.svg";
+import Mapa2 from "../assets/assetsDashboard/mapa2.svg";
 
-import { mdiMapMarkerRadiusOutline } from '@mdi/js';
+import Alerta from "../assets/assetsDashboard/alerta.svg";
+import Alerta2 from "../assets/assetsDashboard/alerta2.svg";
 
-import { mdiExitToApp } from '@mdi/js';
-
-
-
-import F9 from "../assets/assetsHome/CelularH.svg";
+import Home from "../assets/assetsDashboard/home.svg";
 
 const Sidebar2 = () => {
-  return (
-    <div className="bg-white w-2/12 rounded-2xl flex flex-col justify-between my-6 mb-12 ml-4
-    sm:mb-16 sm:w-24">
-      <div className="w-full  h-3/6 mt-2 text-white flex flex-col gap-y-4 items-center">
-        <img src={Logo} alt="" className=" mb-4" />
+  const location = useLocation();
+  const isActive = (path) => location.pathname === path;
 
+  // Hover state para cada item
+  const [hovered, setHovered] = useState({
+    dashboard: false,
+    relatorios: false,
+    mapa: false,
+    alertas: false,
+  });
+
+  return (
+    <div className="bg-white w-2/12 rounded-[35px] flex flex-col justify-between my-6 mb-12 ml-4 sm:mb-12 sm:w-24">
+      {/* Topo - Logo e Menu */}
+      <div className="w-full mt-2 flex flex-col gap-y-4 items-center">
+        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16"/>
+
+        {/* DASHBOARD */}
         <Link
           to="/Dashboard"
           component={RouterLink}
-          fontSize={18}
           underline="none"
-          className="py-1 flex bg-indigo-500 w-9/12 mx-auto rounded-2xl
-          sm:max-w-14"
+          onMouseEnter={() => setHovered({ ...hovered, dashboard: true })}
+          onMouseLeave={() => setHovered({ ...hovered, dashboard: false })}
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+            isActive("/Dashboard")
+              ? "bg-violeta cursor-default"
+              : "hover:bg-violeta/70 cursor-pointer duration-300"
+          }`}
         >
-          <Icon
-            path={mdiCubeOutline}
-            size={1.8}
-            className="text-white mx-auto bg-indigo-500 rounded-lg"
+          <img
+            src={isActive("/Dashboard") || hovered.dashboard ? Caixa2 : Caixa}
+            className="mx-auto"
+            alt="Dashboard"
           />
         </Link>
+
+        {/* RELATÓRIOS */}
         <Link
           to="/Relatorios"
           component={RouterLink}
-          fontSize={18}
           underline="none"
-          className="py-2 flex"
+          onMouseEnter={() => setHovered({ ...hovered, relatorios: true })}
+          onMouseLeave={() => setHovered({ ...hovered, relatorios: false })}
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+            isActive("/Relatorios")
+              ? "bg-violeta cursor-default"
+              : "hover:bg-violeta/70 cursor-pointer duration-700"
+          }`}
         >
-          <Icon
-            className=" mx-auto text-indigo-500"
-            path={mdiChartDonut}
-            strokeWidth={0.5}
-            size={1.8}
+          <img
+            src={
+              isActive("/Relatorios") || hovered.relatorios
+                ? Grafico2
+                : Grafico
+            }
+            className="mx-auto"
+            alt="Relatórios"
           />
         </Link>
+
+        {/* MAPA */}
         <Link
           to="/Mapa"
           component={RouterLink}
-          fontSize={18}
           underline="none"
-          className="py-2 flex"
+          onMouseEnter={() => setHovered({ ...hovered, mapa: true })}
+          onMouseLeave={() => setHovered({ ...hovered, mapa: false })}
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+            isActive("/Mapa")
+              ? "bg-violeta cursor-default"
+              : "hover:bg-violeta/70 cursor-pointer duration-700"
+          }`}
         >
-          <Icon
-            path={mdiMapMarkerRadiusOutline}
-            size={1.8}
-            className=" mx-auto  text-indigo-500"
+          <img
+            src={isActive("/Mapa") || hovered.mapa ? Mapa2 : Mapa}
+            className="mx-auto"
+            alt="Mapa"
           />
         </Link>
+
+        {/* ALERTAS */}
         <Link
           to="/Alertas"
-          comprfonent={RouterLink}
-          fontSize={18}
+          component={RouterLink}
           underline="none"
-          className="py-2 flex"
+          onMouseEnter={() => setHovered({ ...hovered, alertas: true })}
+          onMouseLeave={() => setHovered({ ...hovered, alertas: false })}
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+            isActive("/Alertas")
+              ? "bg-violeta cursor-default"
+              : "hover:bg-violeta/70 cursor-pointer duration-700"
+          }`}
         >
-          <Icon
-            path={mdiBellOutline}
-            size={1.8}
-            className=" mx-auto  text-indigo-500"
+          <img
+            src={isActive("/Alertas") || hovered.alertas ? Alerta : Alerta2}
+            className="mx-auto"
+            alt="Alertas"
           />
         </Link>
       </div>
 
-      <div className="h-1/6 w-full flex-col mb-6">
-        {" "}
+      {/* Rodapé */}
+      <div className="w-full flex flex-col items-center gap-4 mb-6">
         <Link
           to="/Home"
           component={RouterLink}
-          fontSize={18}
           underline="none"
-          className="py-5 flex"
+          className={`py-8 flex w-16 mx-auto rounded-[18px] sm:max-w-8 ${
+            isActive("/Home")
+              ? "bg-violeta cursor-default"
+              : "cursor-pointer"
+          }`}
         >
-          <Icon
-            path={mdiExitToApp}
-            size={1.8}
-            className=" mx-auto  text-indigo-500 rotate-180"
-          />
+          <img src={Home} className="mx-auto" alt="Home" />
         </Link>
-        <Avatar
-          sx={{ bgcolor: "gray/50", width: 55, height: 55, fontSize: 28 }}
-          className="mx-auto"
-        >
-          JP
-        </Avatar>
+
+<Link
+  to="/Perfil"
+  component={RouterLink}
+  underline="none"
+>
+  <img
+    src={Foto}
+    alt="Foto de Perfil"
+    className="w-12 h-12 rounded-full object-cover"
+  />
+</Link>
+
       </div>
     </div>
   );
