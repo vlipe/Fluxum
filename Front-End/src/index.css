@@ -5,4 +5,7 @@
 
 #root {
   @apply font-poppins;
+  @import "maplibre-gl/dist/maplibre-gl.css";
+
+
 }   

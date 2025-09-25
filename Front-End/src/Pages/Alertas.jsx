@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Sidebar2 from "../Components/Sidebar2";
-
 import Carregado from "../assets/assetsAlertas/carregado.svg";
 import Descarregado from "../assets/assetsAlertas/descarregado.svg";
 import Rota from "../assets/assetsAlertas/rota.svg";
@@ -8,126 +7,143 @@ import Termometro from "../assets/assetsAlertas/termometro.svg";
 import Check from "../assets/assetsAlertas/check.svg";
 import Pesquisa from "../assets/assetsAlertas/pesquisar.svg";
 import Livro from "../assets/assetsAlertas/livro.svg";
+import { apiFetch } from "../lib/api";
+import ConnectionBadge from "../Components/ConnectionBadge";
+
+function timeAgo(iso) {
+  try {
+    const d = iso ? new Date(iso) : null;
+    if (!d) return "—";
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return "agora";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min atrás`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h atrás`;
+    const days = Math.floor(diff / 86400);
+    return `${days}d atrás`;
+  } catch {
+    return "—";
+  }
+}
+
+function iconForType(t, msg = "") {
+  const T = String(t || "").toUpperCase();
+  if (T.includes("TEMP")) return Termometro;
+  if (T.includes("ROUTE")) return Rota;
+  if (T.includes("BAT")) return Descarregado;
+  if (T.includes("OPEN") || T.includes("CLOSE")) return Check;
+  if (msg.toLowerCase().includes("bateria")) return Descarregado;
+  return Livro;
+}
+
+function titleFromRow(r) {
+  const T = String(r.alert_type || "").toUpperCase();
+  const id = r.container_id || "—";
+  const base =
+    T.includes("TEMP") ? "Temperatura elevada" :
+    T === "ROUTE_DEVIATION" ? "Rota desviada" :
+    T === "ROUTE_COMPLETED" ? "Rota concluída" :
+    "Alerta";
+  return `${base} ${id}`;
+}
 
 const Alertas = () => {
   const [abaSelecionada, setAbaSelecionada] = useState("Todos");
   const [pesquisa, setPesquisa] = useState("");
-  const [alertas, setAlertas] = useState([
-    {
-      id: 1,
-      icone: Termometro,
-      titulo: "Temperatura acima do limite",
-      tempo: "há 1 min.",
-      acao: "Marcar como concluída",
-      tipo: "Pendentes",
-      containerId: "C01",
-      containerNome: "Container A",
-      iotNome: "IoT 1",
-    },
-    {
-      id: 2,
-      icone: Descarregado,
-      titulo: "IoT descarregada",
-      tempo: "há 39 min.",
-      acao: "Nada para concluir . . .",
-      tipo: "Pendentes",
-      containerId: "C02",
-      containerNome: "Container B",
-      iotNome: "Sensor de Bateria",
-    },
-    {
-      id: 3,
-      icone: Rota,
-      titulo: "Rota inesperada detectada",
-      tempo: "há 22h.",
-      acao: "Marcar como concluída",
-      tipo: "Pendentes",
-      containerId: "C03",
-      containerNome: "Container C",
-      iotNome: "GPS Tracker",
-    },
-    {
-      id: 4,
-      icone: Carregado,
-      titulo: "IoT carregada com sucesso",
-      tempo: "há 32d.",
-      acao: "Concluído",
-      tipo: "Resolvidos",
-      containerId: "C04",
-      containerNome: "Container D",
-      iotNome: "Sensor de Carga",
-    },
-  ]);
-
+  const [alertas, setAlertas] = useState([]);
   const [alertaSelecionado, setAlertaSelecionado] = useState(null);
-
+  const [resolvendoId, setResolvendoId] = useState(null);
   const abas = ["Todos", "Pendentes", "Resolvidos"];
 
-  const abrirModal = (alerta) => setAlertaSelecionado(alerta);
-  const fecharModal = () => setAlertaSelecionado(null);
+  const carregar = useCallback(async () => {
+     const rows = await apiFetch("/api/v1/alerts?limit=200");
+    const mapped = (rows || []).map((r) => {
+      const pendente = !r.acknowledged_at;
+      return {
+        id: r.id,
+        icone: iconForType(r.alert_type, r.message || ""),
+        titulo: titleFromRow(r),
+        tempo: timeAgo(r.created_at),
+        acao: pendente ? "Marcar como concluída" : "Concluído",
+        tipo: pendente ? "Pendentes" : "Resolvidos",
+        containerId: r.container_id || "—",
+        containerNome: r.container_id || "—",
+        iotNome: "IoT",
+        raw: r
+      };
+    });
+    setAlertas(mapped);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        if (!alive) return;
+        await carregar();
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => { alive = false; };
+  }, [carregar]);
+
+  async function concluirAlerta(id) {
+    const alvo = alertas.find((a) => a.id === id);
+    if (!alvo || resolvendoId) return;
+    setResolvendoId(id);
+    try {
+      await apiFetch(`/api/v1/alerts/${id}/ack`, { method: "PATCH" });
+      setAlertas((prev) =>
+        prev.map((a) =>
+          a.id === id ? { ...a, tipo: "Resolvidos", acao: "Concluído" } : a
+        )
+      );
+      if (alertaSelecionado?.id === id) setAlertaSelecionado(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setResolvendoId(null);
+    }
+  }
 
   const tempoEmDias = (tempo) => {
+    if (!tempo) return 0;
     if (tempo.includes("d")) return parseInt(tempo.match(/\d+/)[0]);
-    if (tempo.includes("h")) return 0;
-    if (tempo.includes("min")) return 0;
     return 0;
-  };
-
-  const concluirAlerta = (id) => {
-    setAlertas((prev) =>
-      prev.map((a) =>
-        a.id === id
-          ? { ...a, tipo: "Resolvidos", acao: "Concluído" }
-          : a
-      )
-    );
   };
 
   const alertasFiltrados = alertas
     .filter((a) => tempoEmDias(a.tempo) <= 31)
     .filter((alerta) => {
-      const correspondeAba =
-        abaSelecionada === "Todos" || alerta.tipo === abaSelecionada;
-      const correspondePesquisa = alerta.titulo
-        .toLowerCase()
-        .includes(pesquisa.toLowerCase());
+      const correspondeAba = abaSelecionada === "Todos" || alerta.tipo === abaSelecionada;
+      const correspondePesquisa = alerta.titulo.toLowerCase().includes(pesquisa.toLowerCase());
       return correspondeAba && correspondePesquisa;
     });
 
   return (
     <div className="min-h-screen w-full bg-deletar flex flex-col md:flex-row relative">
       <Sidebar2 />
-
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-          <p className="mr-4 text-xl">
-            Oi, <span className="text-[#3E41C0]">Felipe</span>!
-          </p>
-
-          <div className="relative flex-1 max-w-full sm:max-w-4xl">
-            <input
-              type="text"
-              placeholder="Pesquisar alerta"
-              value={pesquisa}
-              onChange={(e) => setPesquisa(e.target.value)}
-              className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none"
-            />
-            <img
-              src={Pesquisa}
-              alt="Pesquisar"
-              className="w-5 h-5 absolute ml-6 top-1/2 -translate-y-1/2 pointer-events-none"
-            />
+          <p className="mr-4 text-xl">Oi, <span className="text-[#3E41C0]">Felipe</span>!</p>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <ConnectionBadge />
+            <div className="relative flex-1 max-w-full sm:max-w-4xl">
+              <input
+                type="text"
+                placeholder="Pesquisar alerta"
+                value={pesquisa}
+                onChange={(e) => setPesquisa(e.target.value)}
+                className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none"
+              />
+              <img src={Pesquisa} alt="Pesquisar" className="w-5 h-5 absolute ml-6 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
         </div>
-
         <div className="bg-white rounded-xl flex flex-col px-4 md:px-8 py-6 h-full">
-
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-xl font-bold font-GT text-azulEscuro">
-              Alertas
-            </h1>
+            <h1 className="text-xl font-bold font-GT text-azulEscuro">Alertas</h1>
           </div>
-
           <div className="bg-[#F2F6FB] flex overflow-x-auto scrollbar-hide rounded-full h-12 mb-6 gap-1">
             {abas.map((aba) => {
               const ativa = abaSelecionada === aba;
@@ -135,67 +151,36 @@ const Alertas = () => {
                 <button
                   key={aba}
                   onClick={() => setAbaSelecionada(aba)}
-                  className={`flex-shrink-0 flex justify-center items-center px-4 font-normal transition-all duration-500 
-                  ${
-                    ativa
-                      ? "bg-violeta text-white shadow-[4px_0px_3px_rgba(91,97,179,0.4)] rounded-full"
-                      : "text-violeta hover:text-indigo-300"
-                  }`}
+                  className={`flex-shrink-0 flex justify-center items-center px-4 font-normal transition-all duration-500 ${ativa ? "bg-violeta text-white shadow-[4px_0px_3px_rgba(91,97,179,0.4)] rounded-full" : "text-violeta hover:text-indigo-300"}`}
                 >
                   {aba}
                 </button>
               );
             })}
           </div>
-
           <div className="flex flex-col gap-4 md:gap-8">
             {alertasFiltrados.length > 0 ? (
               alertasFiltrados.map((alerta) => (
-                <div
-  key={alerta.id}
-  className="grid grid-cols-1 sm:grid-cols-12 sm:items-center bg-[#F2F6FB] px-4 md:px-6 py-4 md:py-5 rounded-3xl gap-4"
->
-  
-  <div className="flex items-center gap-4 sm:col-span-7">
-    <div
-      className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow cursor-pointer"
-      onClick={() => abrirModal(alerta)}
-    >
-      <img src={alerta.icone} alt="icone alerta" className="w-6 h-6" />
-    </div>
-    <p className="text-[#3E41C0] font-medium break-words">
-      {alerta.titulo}
-    </p>
-  </div>
-
-  
-  <span className="text-sm text-[#3E41C0] text-center sm:col-span-2">
-    {alerta.tempo}
-  </span>
-
-  {/* Coluna 3: ação */}
-  <button
-    onClick={() =>
-      alerta.acao === "Marcar como concluída" && concluirAlerta(alerta.id)
-    }
-    className={`font-medium text-sm px-8 py-4 rounded-full bg-white flex items-center justify-center gap-2 sm:col-span-3 ${
-      alerta.acao === "Nada para concluir . . ."
-        ? "text-violeta"
-        : "text-[#3BB61F] hover:underline"
-    }`}
-  >
-    {alerta.acao === "Marcar como concluída" && (
-      <img src={Check} alt="check" className="w-4 h-4" />
-    )}
-    {alerta.acao}
-  </button>
-</div>
-
+                <div key={alerta.id} className="grid grid-cols-1 sm:grid-cols-12 sm:items-center bg-[#F2F6FB] px-4 md:px-6 py-4 md:py-5 rounded-3xl gap-4">
+                  <div className="flex items-center gap-4 sm:col-span-7">
+                    <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow cursor-pointer" onClick={() => setAlertaSelecionado(alerta)}>
+                      <img src={alerta.icone} alt="icone alerta" className="w-6 h-6" />
+                    </div>
+                    <p className="text-[#3E41C0] font-medium break-words">{alerta.titulo}</p>
+                  </div>
+                  <span className="text-sm text-[#3E41C0] text-center sm:col-span-2">{alerta.tempo}</span>
+                  <button
+                    onClick={() => alerta.acao === "Marcar como concluída" && concluirAlerta(alerta.id)}
+                    disabled={resolvendoId === alerta.id || alerta.acao !== "Marcar como concluída"}
+                    className={`font-medium text-sm px-8 py-4 rounded-full bg-white flex items-center justify-center gap-2 sm:col-span-3 ${alerta.acao === "Nada para concluir . . ." ? "text-violeta" : "text-[#3BB61F] hover:underline"} ${resolvendoId === alerta.id ? "opacity-60 cursor-not-allowed" : ""}`}
+                  >
+                    {alerta.acao === "Marcar como concluída" && <img src={Check} alt="check" className="w-4 h-4" />}
+                    {resolvendoId === alerta.id ? "Salvando..." : alerta.acao}
+                  </button>
+                </div>
               ))
             ) : (
-              <p className="text-gray-500 text-sm">
-                Nenhum alerta encontrado...
-              </p>
+              <p className="text-gray-500 text-sm">Nenhum alerta encontrado...</p>
             )}
           </div>
         </div>
@@ -203,44 +188,26 @@ const Alertas = () => {
 
       {alertaSelecionado && (
         <>
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40"
-            onClick={fecharModal}
-          ></div>
-
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-40" onClick={() => setAlertaSelecionado(null)}></div>
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-3xl p-6 z-50 w-full max-w-md shadow-lg">
             <div className="flex">
-              <img
-                src={Livro}
-                alt="icone livro"
-                className="w-6 h-6 -ml-1 mr-4"
-              />
-              <h2 className="text-xl text-azulEscuro font-GT mb-6">
-                Detalhes do Alerta
-              </h2>
+              <img src={Livro} alt="icone livro" className="w-6 h-6 -ml-1 mr-4" />
+              <h2 className="text-xl text-azulEscuro font-GT mb-6">Detalhes do Alerta</h2>
             </div>
-            <p>
-              <strong className="font-GT text-azulEscuro">
-                ID do Container:
-              </strong>{" "}
-              {alertaSelecionado.containerId}
-            </p>
-            <p>
-              <strong className="font-GT text-azulEscuro">
-                Nome do Container:
-              </strong>{" "}
-              {alertaSelecionado.containerNome}
-            </p>
-            <p>
-              <strong className="font-GT text-azulEscuro">IoT:</strong>{" "}
-              {alertaSelecionado.iotNome}
-            </p>
+            <p><strong className="font-GT text-azulEscuro">ID do Container:</strong> {alertaSelecionado.containerId}</p>
+            <p><strong className="font-GT text-azulEscuro">Nome do Container:</strong> {alertaSelecionado.containerNome}</p>
+            <p><strong className="font-GT text-azulEscuro">IoT:</strong> {alertaSelecionado.iotNome}</p>
             <button
-              onClick={fecharModal}
-              className="w-full mt-4 px-4 py-2 bg-violeta border-2 border-violeta text-white rounded-[35px] hover:bg-transparent hover:text-violeta hover:border-2 duration-300"
+              onClick={() => {
+                if (alertaSelecionado.acao === "Marcar como concluída") concluirAlerta(alertaSelecionado.id);
+                else setAlertaSelecionado(null);
+              }}
+              disabled={resolvendoId === alertaSelecionado.id}
+              className={`w-full mt-4 px-4 py-2 bg-[#3BB61F] border-2 border-[#3BB61F] text-white rounded-[35px] hover:bg-transparent hover:text-[#3BB61F] duration-300 ${resolvendoId === alertaSelecionado.id ? "opacity-60 cursor-not-allowed" : ""}`}
             >
-              Fechar
+              {resolvendoId === alertaSelecionado.id ? "Salvando..." : alertaSelecionado.acao === "Marcar como concluída" ? "Marcar como concluída" : "Fechar"}
             </button>
+            <button onClick={() => setAlertaSelecionado(null)} className="w-full mt-2 px-4 py-2 bg-violeta border-2 border-violeta text-white rounded-[35px] hover:bg-transparent hover:text-violeta hover:border-2 duration-300">Fechar</button>
           </div>
         </>
       )}
