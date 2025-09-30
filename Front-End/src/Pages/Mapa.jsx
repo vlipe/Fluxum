@@ -5,39 +5,87 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { bbox as turfBbox } from "@turf/turf";
 
-const shipPng =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAtElEQVRYhe2X0Q2CMBBFv0m4gV3Cwqg6JwK0C2k0b4wYc0Y9y0w+3oHqg0xR1Rk0WJwB3HhQz6g8m1iQy2m4Hqg7G9eZ8n7D6w0d0m4VqQJ1m0xg1w2Gx3v9M0T3z4nQSgQwC2e3P8m8bqgQ6v2E6mQqK7VqQkQmZ8w9l6o9r0mEJkQKk1mG9v1n6rU3LkYB4n0k8QmA8Vb2lQeN0m6qE1g0nqS7mF3dHfGq4m1uVJ8iQ3xw5dC5v2Kx1bYcE3oC3m0q3c1gq7h4W+SPk7w6g6c9l3oQ2f7wC0r8e3w9oUoAAAAASUVORK5CYII=";
-const contPng =
-  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAiUlEQVRYhe3WsQnCMBRF0R9hY7lC0QyQFZpQKu4H8oV7Cq8q9Q4yYy7HqN9z8lZyU8c0g0s9NwCw6w1tQqf3rJr4J/9mQwr9h8r4mKcY0b8WJbE3q1a1rBz3mG6i5+oCwBzYHq5eQ3Q2yQpKpV8xUe2Qw4iZ9bKqk8bZgq3lq6d4S7dOe4P0lX9mW9S9o2kN7r4cI+Y7I3WcGQ7A6m8KQAAAABJRU5ErkJggg==";
-
-// pega o último ponto por viagem (um navio por voyage)
-function latestBy(arr, keyFn, timeFn) {
-  const m = new Map();
-  for (const f of arr) {
-    const k = keyFn(f);
-    if (!k) continue;
-    const t = timeFn(f);
-    const prev = m.get(k);
-    if (!prev || t > prev.t) m.set(k, { f, t });
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+async function waitForImages(m, ids, maxMs = 2000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < maxMs) {
+    const ok = ids.every(id => m.hasImage?.(id));
+    if (ok) return true;
+    await sleep(50);
   }
-  return Array.from(m.values()).map((x) => x.f);
+  return false;
 }
-function toShipsFC(positions) {
-  if (!positions?.features?.length) return { type: "FeatureCollection", features: [] };
-  const feats = latestBy(
-    positions.features.filter((f) => f?.properties?.voyage_code && f?.geometry?.coordinates),
-    (f) => f.properties.voyage_code,
-    (f) => new Date(f.properties.ts_iso || 0).getTime()
-  ).map((f) => ({
-    type: "Feature",
-    geometry: f.geometry,
-    properties: {
-      voyage_code: f.properties.voyage_code,
-      imo: f.properties.imo || null,
-      ship_label: f.properties.imo || f.properties.voyage_code
-    }
-  }));
-  return { type: "FeatureCollection", features: feats };
+function topSymbolBeforeId(m) {
+  const layers = m.getStyle()?.layers || [];
+  for (let i = layers.length - 1; i >= 0; i--) {
+    if (layers[i].type === "symbol") return layers[i].id;
+  }
+  return layers.at(-1)?.id || undefined;
+}
+
+const SHIP_SVG = `
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(32,32)">
+    <path d="M0,-22 L8,-6 L20,-2 L20,4 L8,8 L0,22 L-8,8 L-20,4 L-20,-2 L-8,-6 Z"
+          fill="#2563eb" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+  </g>
+</svg>`;
+const CONT_SVG = `
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="6" y="14" width="36" height="20" rx="4" fill="#3E41C0" stroke="#ffffff" stroke-width="2"/>
+  <line x1="12" y1="14" x2="12" y2="34" stroke="#ffffff" stroke-width="2"/>
+  <line x1="36" y1="14" x2="36" y2="34" stroke="#ffffff" stroke-width="2"/>
+</svg>`;
+async function loadSvgIcon(svgString) {
+  try {
+    const blob = new Blob([svgString], { type: "image/svg+xml" });
+    return await createImageBitmap(blob);
+  } catch {
+    return await new Promise((resolve, reject) => {
+      const img = new Image();
+      const svg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        try {
+          const c = document.createElement("canvas");
+          c.width = img.width || 64;
+          c.height = img.height || 64;
+          const ctx = c.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          c.toBlob((b) => {
+            if (!b) return reject(new Error("canvas toBlob failed"));
+            createImageBitmap(b).then(resolve, reject);
+          });
+        } catch (e) { reject(e); }
+      };
+      img.onerror = reject;
+      img.src = svg;
+    });
+  }
+}
+
+function buildTrailForShip(positions, shipKey, limit = 80) {
+  if (!positions?.features?.length || !shipKey) return null;
+  const pts = positions.features
+    .filter((f) => {
+      const p = f?.properties;
+      const k = p?.voyage_code || p?.ship_id || p?.imo;
+      return k === shipKey && f?.geometry?.coordinates;
+    })
+    .sort((a, b) => new Date(a?.properties?.ts_iso || 0) - new Date(b?.properties?.ts_iso || 0))
+    .slice(-limit)
+    .map((f) => f.geometry.coordinates);
+  if (pts.length < 2) return null;
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "LineString", coordinates: pts },
+        properties: { role: "trail", count: pts.length }
+      }
+    ]
+  };
 }
 
 export default function Mapa() {
@@ -45,19 +93,26 @@ export default function Mapa() {
   const map = useRef(null);
   const wsRef = useRef(null);
 
-  const [positions, setPositions] = useState(null);
-  const [ships, setShips] = useState(null);
+  const [positions, setPositions] = useState(null); // containers (FeatureCollection)
+  const [ships, setShips] = useState(null);         // ships agregados por voyage (FeatureCollection)
   const [track, setTrack] = useState(null);
   const [q, setQ] = useState("");
   const [voyageCode, setVoyageCode] = useState("");
   const [routeMode, setRouteMode] = useState("track");
   const [loading, setLoading] = useState(true);
 
-  // seletor Streets/Satellite (padrão via .env)
+  const [planning, setPlanning] = useState(false);
+  const [origin, setOrigin] = useState(null);
+  const [destination, setDestination] = useState(null);
+  const [plannedRoute, setPlannedRoute] = useState(null);
+  const [plannedEnds, setPlannedEnds] = useState(null);
+
+  const [routeMeta, setRouteMeta] = useState({ isEstimated: false, label: "" });
+
   const [baseStyle, setBaseStyle] = useState(
     (import.meta.env.VITE_MAP_BASE || "streets").toLowerCase() === "satellite" ? "satellite" : "streets"
   );
-  const [styleVersion, setStyleVersion] = useState(0); // força redesenho pós-troca de estilo
+  const [styleVersion, setStyleVersion] = useState(0);
 
   const mapStyle = useMemo(() => {
     const key = import.meta.env.VITE_MAPTILER_KEY;
@@ -67,33 +122,32 @@ export default function Mapa() {
       : `https://api.maptiler.com/maps/streets-v2/style.json?key=${key}`;
   }, [baseStyle]);
 
-  // registra ícones + overlay OpenSeaMap
   const registerImagesAndOverlay = useCallback(async () => {
     const m = map.current;
     if (!m) return;
+    m.on?.("styleimagemissing", async (e) => {
+      try {
+        if (e?.id === "ship-icon") {
+          const ship = await loadSvgIcon(SHIP_SVG);
+          m.addImage("ship-icon", ship, { pixelRatio: 2 });
+        }
+        if (e?.id === "cont-icon") {
+          const cont = await loadSvgIcon(CONT_SVG);
+          m.addImage("cont-icon", cont, { pixelRatio: 2 });
+        }
+      } catch (err) {
+        console.warn(err);
+      }
+    });
     try {
-      // evita duplicar imagens se já existirem
       if (!m.hasImage?.("ship-icon")) {
-        const imgShip = await new Promise((resolve, reject) => {
-          const i = new Image();
-          i.onload = () => resolve(i);
-          i.onerror = (e) => reject(e);
-          i.src = shipPng;
-        });
-        // @ts-ignore
-        m.addImage("ship-icon", imgShip, { pixelRatio: 2 });
+        const ship = await loadSvgIcon(SHIP_SVG);
+        m.addImage("ship-icon", ship, { pixelRatio: 2 });
       }
       if (!m.hasImage?.("cont-icon")) {
-        const imgCont = await new Promise((resolve, reject) => {
-          const i = new Image();
-          i.onload = () => resolve(i);
-          i.onerror = (e) => reject(e);
-          i.src = contPng;
-        });
-        // @ts-ignore
-        m.addImage("cont-icon", imgCont, { pixelRatio: 2 });
+        const cont = await loadSvgIcon(CONT_SVG);
+        m.addImage("cont-icon", cont, { pixelRatio: 2 });
       }
-
       const key = import.meta.env.VITE_MAPTILER_KEY;
       if (key && !m.getSource("openseamap")) {
         m.addSource("openseamap", {
@@ -102,24 +156,20 @@ export default function Mapa() {
           tileSize: 256,
           attribution: "MapTiler © OSM contributors, Seamarks © OpenSeaMap"
         });
-        m.addLayer({
-          id: "openseamap",
-          type: "raster",
-          source: "openseamap",
-          paint: { "raster-opacity": 0.8 }
-        });
+        m.addLayer(
+          { id: "openseamap", type: "raster", source: "openseamap", paint: { "raster-opacity": 0.8 } },
+          topSymbolBeforeId(m)
+        );
       }
     } catch (err) {
-      console.warn("Falha ao registrar imagens/overlay:", err);
+      console.warn(err);
     }
   }, []);
 
-  // cria mapa (primeira vez) e troca de estilo depois com setStyle
+  // init / trocar style
   useEffect(() => {
     if (!mapRef.current) return;
-
     if (!map.current) {
-      // inicialização
       const m = new maplibregl.Map({
         container: mapRef.current,
         style: mapStyle,
@@ -131,129 +181,124 @@ export default function Mapa() {
       });
       map.current = m;
       m.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
-
       m.once("load", async () => {
-        await registerImagesAndOverlay();
         try {
+          await registerImagesAndOverlay();
           m.resize();
         } catch (err) {
-          console.warn("resize falhou:", err);
+          console.warn(err);
         }
       });
-
       const onWindowResize = () => {
-        try {
-          map.current?.resize();
-        } catch (err) {
-          console.warn("resize window falhou:", err);
-        }
+        try { map.current?.resize(); } catch (err) { console.warn(err); }
       };
       window.addEventListener("resize", onWindowResize);
       return () => {
         window.removeEventListener("resize", onWindowResize);
-        try {
-          map.current?.remove();
-        } catch (err) {
-          console.warn("map.remove falhou:", err);
-        }
+        try { map.current?.remove(); } catch (err) { console.warn(err); }
         map.current = null;
       };
     } else {
-      // troca de estilo on-the-fly
       const m = map.current;
       try {
         m.setStyle(mapStyle);
-        m.once("styledata", async () => {
-          await registerImagesAndOverlay();
-          // avisa o efeito de camadas para re-hidratar tudo
-          setStyleVersion((v) => v + 1);
+        m.once("load", async () => {
           try {
+            await registerImagesAndOverlay();
+            setStyleVersion(v => v + 1);
+            setRouteMeta({ isEstimated: false, label: "" });
             m.resize();
-          } catch (err) {
-            console.warn("resize pós-style falhou:", err);
-          }
+          } catch (err) { console.warn(err); }
         });
-      } catch (err) {
-        console.warn("setStyle falhou:", err);
-      }
+      } catch (err) { console.warn(err); }
     }
   }, [mapStyle, registerImagesAndOverlay]);
 
-  // carrega posições + WebSocket
+  // bootstrap HTTP + WS
+  // adicione no topo do componente
+  const wsInit = useRef(false);
+
   useEffect(() => {
+    if (wsInit.current) return;     // evita dupla execução no StrictMode
+    wsInit.current = true;
+
     let alive = true;
+
     (async () => {
       try {
-        const data = await apiFetch("/api/v1/containers/positions");
+        const [cont, sh] = await Promise.all([
+          apiFetch("/api/v1/live/containers"),
+          apiFetch("/api/v1/live/ships"),
+        ]);
         if (!alive) return;
-        setPositions(data);
-        setShips(toShipsFC(data));
+        setPositions(cont);
+        setShips(sh);
       } catch (err) {
-        console.warn("Falha carregando positions:", err);
+        console.warn("Falha carregando live:", err);
       } finally {
         if (alive) setLoading(false);
       }
     })();
 
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const wsUrl = `${proto}://${window.location.host}/ws/positions`;
-    let ws;
-    try {
-      ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-      ws.onmessage = (evt) => {
-        try {
-          const msg = JSON.parse(evt.data);
-          if (msg?.type === "positions") {
-            setPositions(msg.data);
-            setShips(toShipsFC(msg.data));
-          }
-        } catch (err) {
-          console.warn("WS parse falhou:", err);
-        }
-      };
-      ws.onclose = () => null;
-    } catch (err) {
-      console.warn("Falha ao abrir WebSocket:", err);
-    }
+    const scheme = location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${scheme}://${location.hostname}:3000/ws/positions`);
+    wsRef.current = ws;
+
+    // evita log barulhento de erro no console do browser
+    ws.onerror = () => { };
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg?.type === "ships") setShips(msg.data);
+        else if (msg?.type === "containers") setPositions(msg.data);
+      } catch (err) {
+        console.warn("WS parse:", err);
+      }
+    };
 
     return () => {
       alive = false;
       try {
-        wsRef.current?.close();
-      } catch (err) {
-        console.warn("WS close falhou:", err);
-      }
+        if (!wsRef.current) return;
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.close();
+        } else if (wsRef.current.readyState === WebSocket.CONNECTING) {
+          wsRef.current.onopen = () => wsRef.current?.close();
+        }
+      } catch (err) { console.warn(err) }
     };
   }, []);
 
-  // carrega track quando trocar voyage/mode
+
+  // track/great-circle por voyage
   useEffect(() => {
     let alive = true;
     (async () => {
       if (!voyageCode) {
         setTrack(null);
+        setRouteMeta({ isEstimated: false, label: "" });
         return;
       }
       const path =
         routeMode === "great-circle"
           ? `/api/v1/voyages/${encodeURIComponent(voyageCode)}/great-circle?npoints=180`
-          : `/api/v1/voyages/${encodeURIComponent(voyageCode)}/track`;
+          : `/api/v1/voyages/${encodeURIComponent(voyageCode)}/track.geojson`;
       try {
         const t = await apiFetch(path);
         if (!alive) return;
         setTrack(t);
+        setRouteMeta({ isEstimated: false, label: voyageCode });
       } catch (err) {
         console.warn("Falha buscando track:", err);
         setTrack(null);
+        setRouteMeta({ isEstimated: false, label: "" });
       }
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [voyageCode, routeMode]);
 
-  // filtro digitado
+  // filtro de containers
   const filterExpr = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return ["boolean", true];
@@ -265,156 +310,226 @@ export default function Mapa() {
     ];
   }, [q]);
 
-  // foco no voyage: zoom + rota (ou fallback) + start/end + filtra containers do voyage
-  const highlightVoyage = useCallback(
-    async (vcode, shipLngLat) => {
-      setVoyageCode(vcode);
+  // destaca a trilha do navio (derivada dos containers da mesma voyage)
+  const highlightShipTrail = useCallback((shipKey, shipLngLat, label = "") => {
+    const m = map.current;
+    if (!m) return;
+    setRouteMeta({ isEstimated: false, label: "" });
 
-      const m = map.current;
-      if (!m) return;
+    try { m.easeTo({ center: shipLngLat, zoom: 8, duration: 900, essential: true }); } catch (err) { console.warn(err); }
+
+    const lineFC = buildTrailForShip(positions, shipKey, 80);
+    const trackSrcId = "ship-trail";
+    const endsSrcId = "ship-trail-ends";
+    const focusSrcId = "ship-focus";
+
+    ["ship-trail-line", "ship-trail-arrows", "ship-trail-ends", "ship-focus-ring"].forEach((id) => {
+      try { if (m.getLayer(id)) m.removeLayer(id); } catch (err) { console.warn(err); }
+    });
+    [trackSrcId, endsSrcId, focusSrcId].forEach((sid) => {
+      try { if (m.getSource(sid)) m.removeSource(sid); } catch (err) { console.warn(err); }
+    });
+
+    try {
+      const focusFC = { type: "FeatureCollection", features: [{ type: "Feature", geometry: { type: "Point", coordinates: shipLngLat } }] };
+      m.addSource(focusSrcId, { type: "geojson", data: focusFC });
+      m.addLayer({
+        id: "ship-focus-ring",
+        type: "circle",
+        source: focusSrcId,
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 10, 10, 22],
+          "circle-color": "rgba(62,65,192,0.12)",
+          "circle-stroke-color": "#3E41C0",
+          "circle-stroke-width": 2
+        }
+      });
+    } catch (err) { console.warn(err); }
+
+    if (!lineFC) return;
+
+    try {
+      m.addSource(trackSrcId, { type: "geojson", data: lineFC });
+      m.addLayer({ id: "ship-trail-line", type: "line", source: trackSrcId, paint: { "line-color": "#1e90ff", "line-width": 3 } });
+      m.addLayer({
+        id: "ship-trail-arrows",
+        type: "symbol",
+        source: trackSrcId,
+        layout: { "symbol-placement": "line", "symbol-spacing": 60, "text-field": "▶", "text-size": 12, "text-allow-overlap": true },
+        paint: { "text-color": "#1e90ff", "text-halo-color": "#ffffff", "text-halo-width": 1 }
+      });
+
+      const coords = lineFC.features[0].geometry.coordinates;
+      const endsFC = {
+        type: "FeatureCollection",
+        features: [
+          { type: "Feature", geometry: { type: "Point", coordinates: coords[0] }, properties: { role: "start" } },
+          { type: "Feature", geometry: { type: "Point", coordinates: coords[coords.length - 1] }, properties: { role: "end" } }
+        ]
+      };
+      m.addSource(endsSrcId, { type: "geojson", data: endsFC });
+      m.addLayer({
+        id: "ship-trail-ends",
+        type: "circle",
+        source: endsSrcId,
+        paint: {
+          "circle-radius": 6,
+          "circle-color": ["case", ["==", ["get", "role"], "start"], "#22c55e", "#ef4444"],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff"
+        }
+      });
+
+      const count = lineFC.features?.[0]?.properties?.count ?? coords.length;
+      const isEstimated = count <= 2;
+      setRouteMeta({ isEstimated, label });
 
       try {
-        m.easeTo({ center: shipLngLat, zoom: 7.8, duration: 900, essential: true });
-      } catch (err) {
-        console.warn("easeTo falhou:", err);
-      }
+        const b = turfBbox(lineFC);
+        if (Number.isFinite(b[0])) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 48, duration: 800, maxZoom: 9 });
+      } catch (err) { console.warn(err); }
+    } catch (err) { console.warn(err); }
+  }, [positions]);
 
-      let lineFC = null;
-      try {
-        const t = await apiFetch(`/api/v1/voyages/${encodeURIComponent(vcode)}/track`);
-        if (t?.features?.length) lineFC = t;
-      } catch (err) {
-        console.warn("Falha buscando track do voyage:", err);
-      }
+  // rota planejada (origem/destino)
+  const drawPlannedRoute = useCallback(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!m.isStyleLoaded()) { m.once("load", drawPlannedRoute); return; }
 
-      if (!lineFC?.features?.length && positions?.features?.length) {
-        const pts = positions.features
-          .filter((f) => f?.properties?.voyage_code === vcode && f?.geometry?.coordinates)
-          .sort((a, b) => new Date(a.properties.ts_iso || 0) - new Date(b.properties.ts_iso || 0))
-          .map((f) => f.geometry.coordinates);
-        if (pts.length >= 2) {
-          lineFC = {
-            type: "FeatureCollection",
-            features: [{ type: "Feature", geometry: { type: "LineString", coordinates: pts }, properties: {} }]
-          };
-        }
-      }
+    const routeSrc = "plan-route";
+    const endsSrc = "plan-ends";
 
-      const trackSrcId = "voyage-track";
-      const endsSrcId = "voyage-ends";
-      const focusSrcId = "ship-focus";
+    ["plan-route-line", "plan-route-arrows", "plan-ends"].forEach((layer) => { try { if (m.getLayer(layer)) m.removeLayer(layer); } catch (err) { console.warn(err); } });
+    [routeSrc, endsSrc].forEach((sid) => { try { if (m.getSource(sid)) m.removeSource(sid); } catch (err) { console.warn(err); } });
 
-      if (lineFC) {
-        try {
-          if (m.getSource(trackSrcId)) m.getSource(trackSrcId).setData(lineFC);
-          else {
-            m.addSource(trackSrcId, { type: "geojson", data: lineFC });
-            m.addLayer({
-              id: "voyage-track-line",
-              type: "line",
-              source: trackSrcId,
-              paint: { "line-color": "#1e90ff", "line-width": 3 }
-            });
-          }
-          const b = turfBbox(lineFC);
-          if (Number.isFinite(b[0])) {
-            m.fitBounds(
-              [
-                [b[0], b[1]],
-                [b[2], b[3]]
-              ],
-              { padding: 48, duration: 900, maxZoom: 8 }
-            );
-          }
-        } catch (err) {
-          console.warn("Desenho/fit da rota falhou:", err);
-        }
-      }
+    if (!plannedRoute || !plannedRoute.features?.length) return;
 
-      if (lineFC?.features?.[0]?.geometry?.type === "LineString") {
-        try {
-          const coords = lineFC.features[0].geometry.coordinates;
-          const endsFC = {
-            type: "FeatureCollection",
-            features: [
-              { type: "Feature", geometry: { type: "Point", coordinates: coords[0] }, properties: { role: "start" } },
-              { type: "Feature", geometry: { type: "Point", coordinates: coords[coords.length - 1] }, properties: { role: "end" } }
-            ]
-          };
-          if (m.getSource(endsSrcId)) m.getSource(endsSrcId).setData(endsFC);
-          else {
-            m.addSource(endsSrcId, { type: "geojson", data: endsFC });
-            m.addLayer({
-              id: "voyage-ends-layer",
-              type: "circle",
-              source: endsSrcId,
-              paint: {
-                "circle-radius": 6,
-                "circle-color": ["case", ["==", ["get", "role"], "start"], "#22c55e", "#ef4444"],
-                "circle-stroke-width": 2,
-                "circle-stroke-color": "#ffffff"
-              }
-            });
-          }
-        } catch (err) {
-          console.warn("Marcação de start/end falhou:", err);
-        }
+    try {
+      m.addSource(routeSrc, { type: "geojson", data: plannedRoute });
+      if (plannedEnds) m.addSource(endsSrc, { type: "geojson", data: plannedEnds });
+
+      const beforeId = m.getStyle().layers.findLast?.(l => l.type === "symbol")?.id || m.getStyle().layers.at(-1)?.id;
+
+      m.addLayer({ id: "plan-route-line", type: "line", source: routeSrc, paint: { "line-color": "#0ea5e9", "line-width": 3 } }, beforeId);
+      m.addLayer(
+        {
+          id: "plan-route-arrows", type: "symbol", source: routeSrc,
+          layout: { "symbol-placement": "line", "symbol-spacing": 60, "text-field": "▶", "text-size": 12, "text-allow-overlap": true },
+          paint: { "text-color": "#0ea5e9", "text-halo-color": "#ffffff", "text-halo-width": 1 }
+        },
+        beforeId
+      );
+
+      if (plannedEnds) {
+        m.addLayer(
+          {
+            id: "plan-ends", type: "circle", source: endsSrc,
+            paint: { "circle-radius": 6, "circle-color": ["case", ["==", ["get", "role"], "start"], "#22c55e", "#ef4444"], "circle-stroke-width": 2, "circle-stroke-color": "#ffffff" }
+          },
+          beforeId
+        );
       }
 
       try {
-        const focusFC = {
-          type: "FeatureCollection",
-          features: [{ type: "Feature", geometry: { type: "Point", coordinates: shipLngLat }, properties: {} }]
-        };
-        if (m.getSource(focusSrcId)) m.getSource(focusSrcId).setData(focusFC);
-        else {
-          m.addSource(focusSrcId, { type: "geojson", data: focusFC });
-          m.addLayer({
-            id: "ship-focus-ring",
-            type: "circle",
-            source: focusSrcId,
-            paint: {
-              "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 10, 10, 20],
-              "circle-color": "rgba(62,65,192,0.12)",
-              "circle-stroke-color": "#3E41C0",
-              "circle-stroke-width": 2
-            }
-          });
-        }
-      } catch (err) {
-        console.warn("Anel de foco falhou:", err);
-      }
+        const b = turfBbox(plannedRoute);
+        if (Number.isFinite(b[0])) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 48, duration: 800, maxZoom: 13 });
+      } catch (err) { console.warn(err); }
+    } catch (err) { console.warn(err); }
+  }, [plannedRoute, plannedEnds]);
 
-      try {
-        m.setFilter("containers-unclustered", [
-          "all",
-          ["!", ["has", "point_count"]],
-          ["==", ["get", "voyage_code"], vcode]
-        ]);
-      } catch (err) {
-        console.warn("Filtro de containers por voyage falhou:", err);
-      }
-    },
-    [positions]
-  );
+  useEffect(() => { if (!map.current) return; drawPlannedRoute(); }, [styleVersion, drawPlannedRoute]);
 
-  // desenha/atualiza camadas (também roda após troca de estilo via styleVersion)
+  // clique para escolher origem/destino
   useEffect(() => {
     const m = map.current;
-    if (!m || !positions || !ships) return;
+    if (!m) return;
+    const onMapClickPlan = (e) => {
+      if (!planning) return;
+      const lngLat = e.lngLat;
+      if (!origin) setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
+      else if (!destination) setDestination({ lat: lngLat.lat, lng: lngLat.lng });
+      else {
+        setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
+        setDestination(null);
+        setPlannedRoute(null);
+        setPlannedEnds(null);
+      }
+    };
+    m.on("click", onMapClickPlan);
+    return () => { try { m.off("click", onMapClickPlan); } catch (err) { console.warn(err); } };
+  }, [planning, origin, destination]);
 
-    const contSrc = "containers";
-    const shipSrc = "ships";
-    const trackSrcId = "track";
-
-    const ensure = () => {
-      // CONTAINERS
-      if (m.getSource(contSrc)) {
-        try {
-          m.getSource(contSrc).setData(positions);
-        } catch (err) {
-          console.warn("setData containers falhou:", err);
+  // requisita rota planejada (API)
+  useEffect(() => {
+    const doRoute = async () => {
+      if (!origin || !destination) return;
+      try {
+        const body = { origin, destination };
+        const res = await apiFetch("/api/v1/route/maritime", { method: "POST", body });
+        let route = res?.route || null;
+        if (!route) {
+          route = {
+            type: "FeatureCollection",
+            features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
+          };
+        } else {
+          if (route.type === "Feature") route = { type: "FeatureCollection", features: [route] };
+          if (route.type === "FeatureCollection" && !route.features?.length) {
+            route = {
+              type: "FeatureCollection",
+              features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
+            };
+          }
         }
+        let ends = res?.ends || null;
+        if (!ends) {
+          ends = {
+            type: "FeatureCollection",
+            features: [
+              { type: "Feature", geometry: { type: "Point", coordinates: [origin.lng, origin.lat] }, properties: { role: "start" } },
+              { type: "Feature", geometry: { type: "Point", coordinates: [destination.lng, destination.lat] }, properties: { role: "end" } }
+            ]
+          };
+        } else if (ends.type === "Feature") {
+          ends = { type: "FeatureCollection", features: [ends] };
+        }
+        setPlannedRoute(route);
+        setPlannedEnds(ends);
+      } catch (err) {
+        console.warn(err);
+        setPlannedRoute({
+          type: "FeatureCollection",
+          features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
+        });
+        setPlannedEnds({
+          type: "FeatureCollection",
+          features: [
+            { type: "Feature", geometry: { type: "Point", coordinates: [origin.lng, origin.lat] }, properties: { role: "start" } },
+            { type: "Feature", geometry: { type: "Point", coordinates: [destination.lng, destination.lat] }, properties: { role: "end" } }
+          ]
+        });
+      }
+    };
+    doRoute();
+  }, [origin, destination]);
+
+  useEffect(() => { drawPlannedRoute(); }, [plannedRoute, plannedEnds, drawPlannedRoute]);
+
+  // desenha/atualiza camadas
+  useEffect(() => {
+  const m = map.current;
+  if (!m) return;
+
+  const contSrc = "containers";
+  const shipSrc = "ships";
+  const trackSrcId = "track";
+
+  const ensure = async () => {
+    // 1) CONTAINERS (cria/atualiza mesmo que ships não exista)
+    if (positions) {
+      if (m.getSource(contSrc)) {
+        try { m.getSource(contSrc).setData(positions); } catch (err) { console.warn(err); }
       } else {
         try {
           m.addSource(contSrc, {
@@ -424,31 +539,43 @@ export default function Mapa() {
             clusterMaxZoom: 12,
             clusterRadius: 50
           });
-          m.addLayer({
-            id: "containers-unclustered",
-            type: "symbol",
-            source: contSrc,
-            filter: ["!", ["has", "point_count"]],
-            layout: { "icon-image": "cont-icon", "icon-size": 0.9, "icon-allow-overlap": true }
-          });
-          m.addLayer({
-            id: "containers-clusters",
-            type: "circle",
-            source: contSrc,
-            filter: ["has", "point_count"],
-            paint: {
-              "circle-color": ["step", ["get", "point_count"], "#8da2fb", 50, "#4f46e5", 200, "#1e1b4b"],
-              "circle-radius": ["step", ["get", "point_count"], 16, 50, 22, 200, 30]
-            }
-          });
-          m.addLayer({
-            id: "containers-count",
-            type: "symbol",
-            source: contSrc,
-            filter: ["has", "point_count"],
-            layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 12 },
-            paint: { "text-color": "#ffffff" }
-          });
+          await waitForImages(m, ["ship-icon", "cont-icon"]);
+          const beforeId = topSymbolBeforeId(m);
+
+          m.addLayer(
+            {
+              id: "containers-unclustered",
+              type: "symbol",
+              source: contSrc,
+              filter: ["!", ["has", "point_count"]],
+              layout: { "icon-image": "cont-icon", "icon-size": 0.9, "icon-allow-overlap": true }
+            },
+            beforeId
+          );
+          m.addLayer(
+            {
+              id: "containers-clusters",
+              type: "circle",
+              source: contSrc,
+              filter: ["has", "point_count"],
+              paint: {
+                "circle-color": ["step", ["get", "point_count"], "#8da2fb", 50, "#4f46e5", 200, "#1e1b4b"],
+                "circle-radius": ["step", ["get", "point_count"], 16, 50, 22, 200, 30]
+              }
+            },
+            beforeId
+          );
+          m.addLayer(
+            {
+              id: "containers-count",
+              type: "symbol",
+              source: contSrc,
+              filter: ["has", "point_count"],
+              layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 12 },
+              paint: { "text-color": "#ffffff" }
+            },
+            beforeId
+          );
 
           m.on("click", "containers-unclustered", (e) => {
             const f = e.features?.[0];
@@ -461,11 +588,7 @@ export default function Mapa() {
               <div><b>IMO:</b> ${p.imo || "—"}</div>
               <div><b>Atualizado:</b> ${p.ts_iso || "—"}</div>
             </div>`;
-            try {
-              new maplibregl.Popup().setLngLat(coords).setHTML(html).addTo(m);
-            } catch (err) {
-              console.warn("Popup container falhou:", err);
-            }
+            try { new maplibregl.Popup().setLngLat(coords).setHTML(html).addTo(m); } catch (err) { console.warn(err); }
           });
 
           m.on("click", "containers-clusters", (e) => {
@@ -473,230 +596,236 @@ export default function Mapa() {
               const features = m.queryRenderedFeatures(e.point, { layers: ["containers-clusters"] });
               const clusterId = features[0].properties.cluster_id;
               m.getSource(contSrc).getClusterExpansionZoom(clusterId, (err, zoom) => {
-                if (err) {
-                  console.warn("clusterExpansionZoom falhou:", err);
-                  return;
-                }
+                if (err) return;
                 m.easeTo({ center: features[0].geometry.coordinates, zoom });
               });
-            } catch (err) {
-              console.warn("Clique em clusters falhou:", err);
-            }
+            } catch (err) { console.warn(err); }
           });
-        } catch (err) {
-          console.warn("Criação das camadas containers falhou:", err);
-        }
+        } catch (err) { console.warn(err); }
       }
 
-    // SHIPS
-if (m.getSource(shipSrc)) {
-  try {
-    m.getSource(shipSrc).setData(ships);
-  } catch (err) {
-    console.warn("setData ships falhou:", err);
-  }
-} else {
-  try {
-    m.addSource(shipSrc, { type: "geojson", data: ships });
-
-    const hasIcon = typeof m.hasImage === "function" ? m.hasImage("ship-icon") : true;
-
-    if (hasIcon) {
-      // Camada com ícone
-      m.addLayer({
-        id: "ships-layer",
-        type: "symbol",
-        source: shipSrc,
-        layout: {
-          "icon-image": "ship-icon",
-          "icon-size": 1.0,
-          "icon-allow-overlap": true,
-          "icon-ignore-placement": true,
-          "text-field": ["get", "ship_label"],
-          "text-offset": [0, 1.2],
-          "text-size": 12,
-          "text-anchor": "top"
-        },
-        paint: { "text-color": "#0f172a" }
-      }, "openseamap"); // insere acima do raster (se existir)
-    } else {
-      // Fallback visual se sprite ainda não estiver pronto
-      m.addLayer({
-        id: "ships-layer-fallback",
-        type: "circle",
-        source: shipSrc,
-        paint: {
-          "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 3, 10, 6],
-          "circle-color": "#0ea5e9",
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 1.5
+      // aplica filtro aos containers (se a layer já existir)
+      try {
+        if (m.getLayer("containers-unclustered")) {
+          m.setFilter("containers-unclustered", ["all", ["!", ["has", "point_count"]], filterExpr]);
         }
-      }, "openseamap");
+      } catch (err) { console.warn(err); }
     }
 
-    // handlers de interação (apontam para a camada que existir)
-    const shipLayerId = m.getLayer("ships-layer") ? "ships-layer" : "ships-layer-fallback";
-
-    m.on("click", shipLayerId, (e) => {
-      const f = e.features?.[0];
-      if (!f) return;
-      const vcode = f.properties?.voyage_code || "";
-      const coords = f.geometry?.coordinates?.slice?.() || null;
-      if (!vcode || !coords) return;
-      highlightVoyage(vcode, coords);
-    });
-
-    m.on("mouseenter", shipLayerId, () => { m.getCanvas().style.cursor = "pointer"; });
-    m.on("mouseleave", shipLayerId, () => { m.getCanvas().style.cursor = ""; });
-
-    // clique fora = limpar foco/rota e restaurar filtro digitado
-    m.on("click", (ev) => {
-      try {
-        const layersToCheck = [
-          m.getLayer("ships-layer") ? "ships-layer" : "ships-layer-fallback",
-          "containers-unclustered",
-          "containers-clusters"
-        ].filter(Boolean);
-
-        const feats = m.queryRenderedFeatures(ev.point, { layers: layersToCheck });
-        if (!feats.length) {
-          m.setFilter("containers-unclustered", ["all", ["!", ["has", "point_count"]], filterExpr]);
-          ["voyage-track", "voyage-ends", "ship-focus"].forEach((sid) => {
-            try {
-              if (m.getSource(sid)) {
-                if (sid === "voyage-track" && m.getLayer("voyage-track-line")) m.removeLayer("voyage-track-line");
-                if (sid === "voyage-ends" && m.getLayer("voyage-ends-layer")) m.removeLayer("voyage-ends-layer");
-                if (sid === "ship-focus" && m.getLayer("ship-focus-ring")) m.removeLayer("ship-focus-ring");
-                m.removeSource(sid);
-              }
-            } catch (err) {
-              console.warn(`Remoção de camada ${sid} falhou:`, err);
-            }
-          });
-          setTrack(null);
-        }
-      } catch (err) {
-        console.warn("Clique fora (limpeza) falhou:", err);
-      }
-    });
-  } catch (err) {
-    console.warn("Criação das camadas ships falhou:", err);
-  }
-}
-
-
-      // aplica filtro digitado
-      try {
-        m.setFilter("containers-unclustered", ["all", ["!", ["has", "point_count"]], filterExpr]);
-      } catch (err) {
-        console.warn("Aplicar filtro digitado falhou:", err);
-      }
-
-      // camada “track” vinda do state (quando troca select / digita voyageCode)
-      if (track) {
+    // 2) SHIPS (cria/atualiza mesmo que containers não exista)
+    if (ships) {
+      if (m.getSource(shipSrc)) {
+        try { m.getSource(shipSrc).setData(ships); } catch (err) { console.warn(err); }
+      } else {
         try {
-          if (m.getSource(trackSrcId)) {
-            m.getSource(trackSrcId).setData(track);
+          m.addSource(shipSrc, { type: "geojson", data: ships });
+          const beforeId = topSymbolBeforeId(m);
+          const hasIcon = typeof m.hasImage === "function" ? m.hasImage("ship-icon") : true;
+
+          if (hasIcon) {
+            m.addLayer(
+              {
+                id: "ships-layer",
+                type: "symbol",
+                source: shipSrc,
+                layout: {
+                  "icon-image": "ship-icon",
+                  "icon-size": ["interpolate", ["linear"], ["zoom"], 3, 0.8, 10, 1.15],
+                  "icon-allow-overlap": true,
+                  "icon-ignore-placement": true,
+                  "icon-rotate": ["coalesce", ["get", "course"], 0],
+                  "icon-rotation-alignment": "map",
+                  "text-field": ["coalesce", ["get", "ship_label"], ["get", "voyage_code"], "Ship"],
+                  "text-offset": [0, 1.2],
+                  "text-size": 12,
+                  "text-anchor": "top"
+                },
+                paint: { "text-color": "#0f172a", "text-halo-color": "#ffffff", "text-halo-width": 1 }
+              },
+              beforeId
+            );
           } else {
-            m.addSource(trackSrcId, { type: "geojson", data: track });
-            m.addLayer({
-              id: "track-line",
-              type: "line",
-              source: trackSrcId,
-              paint: { "line-color": "#1e90ff", "line-width": 3 }
-            });
-          }
-          const b = turfBbox(track);
-          if (Number.isFinite(b[0])) {
-            m.fitBounds(
-              [
-                [b[0], b[1]],
-                [b[2], b[3]]
-              ],
-              { padding: 40, duration: 700, maxZoom: 8 }
+            m.addLayer(
+              {
+                id: "ships-layer-fallback",
+                type: "circle",
+                source: shipSrc,
+                paint: {
+                  "circle-radius": ["interpolate", ["linear"], ["zoom"], 3, 4, 10, 7],
+                  "circle-color": "#0ea5e9",
+                  "circle-stroke-color": "#ffffff",
+                  "circle-stroke-width": 1.5
+                }
+              },
+              beforeId
             );
           }
-        } catch (err) {
-          console.warn("Desenho/fit da track (state) falhou:", err);
-        }
-      } else if (m.getSource(trackSrcId)) {
-        try {
-          if (m.getLayer("track-line")) m.removeLayer("track-line");
-          m.removeSource(trackSrcId);
-        } catch (err) {
-          console.warn("Remoção da track (state) falhou:", err);
-        }
-      }
 
-      // sem track: enquadra os navios
-      if (!track && ships?.features?.length) {
+          const shipLayerId = m.getLayer("ships-layer") ? "ships-layer" : "ships-layer-fallback";
+
+          m.on("click", shipLayerId, (e) => {
+            const f = e.features?.[0];
+            if (!f) return;
+            const props = f.properties || {};
+            const coords = f.geometry?.coordinates?.slice?.();
+            if (!coords) return;
+
+            const shipKey = props.ship_key || props.voyage_code || props.ship_id || props.imo;
+            const label = props.ship_label || shipKey || "";
+            highlightShipTrail(shipKey, coords, label);
+
+            const voyage = props.voyage_code || null;
+            try { m.easeTo({ center: coords, zoom: 8, duration: 900 }); } catch (err) { console.warn(err); }
+
+            try {
+              new maplibregl.Popup()
+                .setLngLat(coords)
+                .setHTML(`
+                  <div style="font-size:12px">
+                    <div><b>Viagem:</b> ${voyage ?? "—"}</div>
+                    <div><b>Containers a bordo:</b> ${props.containers_onboard ?? 0}</div>
+                    <div><b>Atualizado:</b> ${props.ts_iso || "—"}</div>
+                  </div>
+                `)
+                .addTo(m);
+            } catch (err) { console.warn(err); }
+          });
+
+          m.on("mouseenter", shipLayerId, () => { m.getCanvas().style.cursor = "pointer"; });
+          m.on("mouseleave", shipLayerId, () => { m.getCanvas().style.cursor = ""; });
+
+          // clique fora limpa overlays
+          m.on("click", (ev) => {
+            try {
+              const layersToCheck = [
+                m.getLayer("ships-layer") ? "ships-layer" : "ships-layer-fallback",
+                "containers-unclustered",
+                "containers-clusters"
+              ].filter(Boolean);
+              const feats = m.queryRenderedFeatures(ev.point, { layers: layersToCheck });
+              if (!feats.length) {
+                ["ship-trail", "ship-trail-ends", "ship-focus", "voyage-track"].forEach((sid) => {
+                  try {
+                    if (m.getSource(sid)) {
+                      if (sid === "ship-trail" && m.getLayer("ship-trail-line")) m.removeLayer("ship-trail-line");
+                      if (sid === "ship-trail" && m.getLayer("ship-trail-arrows")) m.removeLayer("ship-trail-arrows");
+                      if (sid === "ship-trail-ends" && m.getLayer("ship-trail-ends")) m.removeLayer("ship-trail-ends");
+                      if (sid === "ship-focus" && m.getLayer("ship-focus-ring")) m.removeLayer("ship-focus-ring");
+                      if (sid === "voyage-track" && m.getLayer("voyage-track-line")) m.removeLayer("voyage-track-line");
+                      m.removeSource(sid);
+                    }
+                  } catch (err) { console.warn(err); }
+                });
+                setTrack(null);
+                setRouteMeta({ isEstimated: false, label: "" });
+
+                try {
+                  if (m.getLayer("containers-unclustered")) {
+                    m.setFilter("containers-unclustered", ["all", ["!", ["has", "point_count"]], filterExpr]);
+                  }
+                } catch (err) { console.warn(err); }
+              }
+            } catch (err) { console.warn(err); }
+          });
+        } catch (err) { console.warn(err); }
+      }
+    }
+
+    // 3) TRACK buscado por voyage (independente)
+    if (track) {
+      try {
+        if (m.getSource(trackSrcId)) m.getSource(trackSrcId).setData(track);
+        else {
+          m.addSource(trackSrcId, { type: "geojson", data: track });
+          m.addLayer({ id: "track-line", type: "line", source: trackSrcId, paint: { "line-color": "#1e90ff", "line-width": 3 } });
+        }
+        try {
+          const b = turfBbox(track);
+          if (Number.isFinite(b[0])) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 40, duration: 700, maxZoom: 8 });
+        } catch (err) { console.warn(err); }
+      } catch (err) { console.warn(err); }
+    } else if (m.getSource(trackSrcId)) {
+      try {
+        if (m.getLayer("track-line")) m.removeLayer("track-line");
+        m.removeSource(trackSrcId);
+      } catch (err) { console.warn(err); }
+    }
+
+    // 4) Enquadramento quando NÃO há track:
+    if (!track) {
+      if (ships?.features?.length) {
         try {
           const b = turfBbox(ships);
-          if (Number.isFinite(b[0])) {
-            m.fitBounds(
-              [
-                [b[0], b[1]],
-                [b[2], b[3]]
-              ],
-              { padding: 40, duration: 700, maxZoom: 6 }
-            );
-          }
-        } catch (err) {
-          console.warn("fitBounds ships falhou:", err);
-        }
+          if (Number.isFinite(b[0])) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 40, duration: 700, maxZoom: 6 });
+        } catch (err) { console.warn(err); }
+      } else if (positions?.features?.length) {
+        try {
+          const b = turfBbox(positions);
+          if (Number.isFinite(b[0])) m.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 40, duration: 700, maxZoom: 6 });
+        } catch (err) { console.warn(err); }
       }
-    };
+    }
 
-    if (m.isStyleLoaded()) ensure();
-    else m.once("load", ensure);
+   
+    drawPlannedRoute();
+  };
 
-    const onErr = (ev) => console.error("Map error:", ev?.error || ev);
-    m.on("error", onErr);
-    return () => m.off("error", onErr);
-  }, [positions, ships, track, filterExpr, highlightVoyage, styleVersion]);
+  if (m.isStyleLoaded()) ensure();
+  else m.once("load", ensure);
+
+  const onErr = (ev) => console.error("Map error:", ev?.error || ev);
+  m.on("error", onErr);
+  return () => m.off("error", onErr);
+}, [positions, ships, track, filterExpr, highlightShipTrail, styleVersion, drawPlannedRoute]);
+
 
   return (
     <div className="min-h-screen w-full bg-deletar flex flex-col md:flex-row relative">
       <Sidebar2 />
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-          <p className="mr-4 text-xl">
-            Oi, <span className="text-[#3E41C0]">Felipe</span>!
-          </p>
+          <p className="mr-4 text-xl">Oi, <span className="text-[#3E41C0]">Felipe</span>!</p>
           <div className="flex gap-2 w-full sm:w-auto items-center">
-            <input
-              type="text"
-              placeholder="Filtrar por container/viagem/IMO"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none"
-            />
-            <input
-              type="text"
-              placeholder="Código da viagem (ex.: VOY-001)"
-              value={voyageCode}
-              onChange={(e) => setVoyageCode(e.target.value)}
-              className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none"
-            />
-            <select
-              value={routeMode}
-              onChange={(e) => setRouteMode(e.target.value)}
-              className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none"
-            >
+            <input type="text" placeholder="Filtrar por container/viagem/IMO" value={q} onChange={(e) => setQ(e.target.value)} className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" />
+            <input type="text" placeholder="Código da viagem (ex.: VOY-001)" value={voyageCode} onChange={(e) => setVoyageCode(e.target.value)} className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" />
+            <select value={routeMode} onChange={(e) => setRouteMode(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none">
               <option value="track">Track</option>
               <option value="great-circle">Great Circle</option>
             </select>
-
-            {/* seletor de base (streets/satellite) */}
-            <select
-              value={baseStyle}
-              onChange={(e) => setBaseStyle(e.target.value)}
-              className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none"
-              title="Tipo de mapa"
-            >
+            <select value={baseStyle} onChange={(e) => setBaseStyle(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" title="Tipo de mapa">
               <option value="streets">Streets</option>
               <option value="satellite">Satellite</option>
             </select>
+            <button
+              type="button"
+              onClick={() => {
+                const on = !planning;
+                setPlanning(on);
+                if (on) {
+                  setOrigin(null);
+                  setDestination(null);
+                  setPlannedRoute(null);
+                  setPlannedEnds(null);
+                }
+              }}
+              className={`h-12 rounded-3xl px-4 text-sm font-medium ${planning ? "bg-emerald-600 text-white" : "bg-white"}`}
+              title="Clique no mapa: primeiro ponto = origem, segundo = destino"
+            >
+              {planning ? "Planejando… clique 2 pontos" : "Planejar rota"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOrigin(null);
+                setDestination(null);
+                setPlannedRoute(null);
+                setPlannedEnds(null);
+                setPlanning(false);
+              }}
+              className="h-12 rounded-3xl px-4 text-sm bg-white"
+            >
+              Limpar rota
+            </button>
           </div>
         </div>
 
@@ -705,7 +834,19 @@ if (m.getSource(shipSrc)) {
             <h1 className="text-xl font-bold font-GT text-azulEscuro">Mapa</h1>
             {loading && <div className="text-gray-500 text-sm">Carregando…</div>}
           </div>
-          <div className="w-full h-[70vh] rounded-2xl overflow-hidden">
+
+          <div className="w-full h-[70vh] rounded-2xl overflow-hidden relative">
+            {routeMeta.isEstimated && (
+              <div className="absolute top-3 left-3 z-10 select-none rounded-full bg-white/90 backdrop-blur px-3 py-1.5 text-[12px] font-medium text-slate-700 shadow">
+                Estimativa (great-circle){routeMeta.label ? ` • ${routeMeta.label}` : ""}
+              </div>
+            )}
+            {planning && (origin || destination) && (
+              <div className="absolute top-3 right-3 z-10 bg-white/90 backdrop-blur px-3 py-1.5 rounded-full text-[12px] text-slate-700 shadow">
+                {origin ? `Origem: ${origin.lat.toFixed(5)}, ${origin.lng.toFixed(5)}` : "Clique a origem…"}
+                {destination ? ` • Destino: ${destination.lat.toFixed(5)}, ${destination.lng.toFixed(5)}` : origin ? " • clique o destino…" : ""}
+              </div>
+            )}
             <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
           </div>
         </div>

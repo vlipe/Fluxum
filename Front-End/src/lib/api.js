@@ -1,32 +1,23 @@
 import { AuthAPI } from "./auth";
-const API_BASE = import.meta.env.VITE_API_URL || "";
+// src/lib/api.js
+export const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export async function apiFetch(path, opts = {}) {
-  const { method = "GET", headers = {}, body, auth = true } = opts;
-  const url = `${API_BASE}${path}`;
-  const h = { "Content-Type": "application/json", ...headers };
+  const base = API_BASE;
+  const method = (opts.method || "GET").toUpperCase();
 
-  if (auth) {
-    try {
-      const token = typeof AuthAPI?.getToken === "function" ? AuthAPI.getToken() : null;
-      if (token) h["Authorization"] = `Bearer ${token}`;
-    } catch (e) { void e; }
-  }
-
-  const res = await fetch(url, {
-    method,
-    headers: h,
+  const res = await fetch(base + path, {
     credentials: "include",
-    body: body ? JSON.stringify(body) : undefined,
+    cache: method === "GET" ? "no-store" : "no-cache",
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) },
+    ...(opts.body ? { body: JSON.stringify(opts.body) } : {}),
+    method,
   });
 
-  const ct = res.headers.get("Content-Type") || "";
-  const isJson = ct.includes("application/json");
-  const data = isJson ? await res.json().catch(() => ({})) : null;
-
   if (!res.ok) {
-    const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
+    let msg = `${res.status} ${res.statusText}`;
+    try { msg = (await res.json()).error || msg; } catch(err) {console.warn(err)}
     throw new Error(msg);
   }
-  return data;
+  return res.status === 204 ? null : res.json();
 }

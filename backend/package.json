@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-     "db:seed-br": "node scripts/seed-br.js"
+    "db:seed-br": "node scripts/seed-br.js"
   },
   "keywords": [],
   "author": "",

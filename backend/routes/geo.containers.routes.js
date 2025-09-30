@@ -24,7 +24,7 @@ router.get("/containers/positions", async (req, res) => {
           )
         ), '[]'::jsonb)
       ) AS fc
-      FROM latest_container_positions;
+     FROM container_positions;
     `);
     res.json(rows[0]?.fc ?? { type: "FeatureCollection", features: [] });
   } catch (e) {

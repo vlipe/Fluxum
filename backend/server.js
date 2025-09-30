@@ -6,29 +6,24 @@ const cookieParser = require("cookie-parser");
 const rateLimit = require("express-rate-limit");
 const slowDown = require("express-slow-down");
 const { logger, requestId, httpLogger, metricsRoute } = require("./utils/observability");
+const { pool } = require("./database/db");
 
 dotenv.config();
-
-const { pool } = require("./database/db");
 
 const authRoutes = require("./routes/auth.routes");
 const usersRoutes = require("./routes/users.routes");
 const statsRoutes = require("./routes/stats.routes");
 const oauthRoutes = require("./routes/oauth.routes");
 const containerEventsRoutes = require("./routes/containerEvents.routes");
-const v1Ships = require('./routes/ships.routes');
-const v1Voyages = require('./routes/voyages.routes');
-const v1Containers = require('./routes/container.routes');
-const v1Devices = require('./routes/devices.routes');
-const v1Telemetry = require('./routes/telemetry.routes');
-const v1Alerts = require('./routes/alerts.routes');
-const v1Dashboard = require('./routes/dashboard.routes');
+const v1Ships = require("./routes/ships.routes");
+const v1Voyages = require("./routes/voyages.routes");
+const v1Containers = require("./routes/container.routes");
+const v1Devices = require("./routes/devices.routes");
+const v1Telemetry = require("./routes/telemetry.routes");
+const v1Alerts = require("./routes/alerts.routes");
+const v1Dashboard = require("./routes/dashboard.routes");
 const v1GeoContainers = require("./routes/geo.containers.routes");
-
-
-
-
-
+const voyagesMapRouter = require("./routes/voyages_map.routes");
 
 const app = express();
 app.set("trust proxy", 1);
@@ -54,13 +49,102 @@ app.use(speed);
 metricsRoute(app);
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+async function fetchContainersFC() {
+  const { rows } = await pool.query(`
+   WITH latest AS (
+  SELECT DISTINCT ON (cm.container_id)
+    cm.container_id,
+    cm.voyage_code,
+    cm.imo,
+    CASE WHEN trim(cm.lat::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lat::float8 ELSE NULL END AS lat,
+    CASE WHEN trim(cm.lng::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lng::float8 ELSE NULL END AS lng,
+    COALESCE(
+      CASE WHEN cm.ts_iso IS NOT NULL AND trim(cm.ts_iso::text) ~ '^\d{4}-\d{2}-\d{2}'
+           THEN cm.ts_iso::timestamptz END,
+      cm.created_at
+    ) AS ts_iso
+  FROM container_movements cm
+  WHERE cm.lat IS NOT NULL AND cm.lng IS NOT NULL
+  ORDER BY cm.container_id,
+           COALESCE(
+             CASE WHEN cm.ts_iso IS NOT NULL AND trim(cm.ts_iso::text) ~ '^\d{4}-\d{2}-\d{2}'
+                  THEN cm.ts_iso::timestamptz END,
+             cm.created_at
+           ) DESC
+)
+SELECT *
+FROM latest
+WHERE lat IS NOT NULL AND lng IS NOT NULL
+ORDER BY ts_iso DESC
+LIMIT 5000;
+
+  `);
+
+  return {
+    type: "FeatureCollection",
+    features: rows.map(r => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [Number(r.lng), Number(r.lat)] },
+      properties: r
+    }))
+  };
+}
+
+
+async function fetchShipsFC() {
+  const { rows } = await pool.query(`
+    WITH latest AS (
+  SELECT DISTINCT ON (cm.container_id)
+    cm.container_id,
+    cm.voyage_code,
+    CASE WHEN trim(cm.lat::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lat::float8 ELSE NULL END AS lat,
+    CASE WHEN trim(cm.lng::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lng::float8 ELSE NULL END AS lng,
+    COALESCE(
+      CASE WHEN cm.ts_iso IS NOT NULL AND trim(cm.ts_iso::text) ~ '^\d{4}-\d{2}-\d{2}'
+           THEN cm.ts_iso::timestamptz END,
+      cm.created_at
+    ) AS ts_iso
+  FROM container_movements cm
+  WHERE cm.voyage_code IS NOT NULL
+  ORDER BY cm.container_id, ts_iso DESC
+),
+agg AS (
+  SELECT
+    voyage_code,
+    AVG(lat)::float8 AS lat,
+    AVG(lng)::float8 AS lng,
+    MAX(ts_iso)      AS ts_iso,
+    COUNT(*)::int    AS containers_onboard
+  FROM latest
+  WHERE lat IS NOT NULL AND lng IS NOT NULL
+  GROUP BY voyage_code
+)
+SELECT * FROM agg
+ORDER BY ts_iso DESC;
+
+  `);
+
+  return {
+    type: "FeatureCollection",
+    features: rows.map(r => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [Number(r.lng), Number(r.lat)] },
+      properties: {
+        ship_key: r.voyage_code,
+        voyage_code: r.voyage_code,
+        containers_onboard: r.containers_onboard,
+        ts_iso: r.ts_iso
+      }
+    }))
+  };
+}
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api/auth", oauthRoutes);
 app.use("/api/users", usersRoutes);
 app.use("/api", statsRoutes);
 app.use("/api", containerEventsRoutes);
-
 
 app.use("/api/v1", v1Ships);
 app.use("/api/v1", v1Voyages);
@@ -70,18 +154,39 @@ app.use("/api/v1", v1Telemetry);
 app.use("/api/v1", v1Alerts);
 app.use("/api/v1", v1Dashboard);
 app.use("/api/v1", v1GeoContainers);
+app.use("/api/v1", require("./routes/maritime.routes"));
+app.use("/api/v1", voyagesMapRouter);
+
+app.get("/api/v1/live/containers", async (_req, res) => {
+  res.set("Cache-Control", "no-store");   // ← impede 304
+  try {
+    const fc = await fetchContainersFC();
+    res.status(200).json(fc);
+  } catch (e) {
+    console.error("containers/live error:", e);
+    res.status(500).json({ error: "failed to fetch containers" });
+  }
+});
+
+app.get("/api/v1/live/ships", async (_req, res) => {
+  res.set("Cache-Control", "no-store");   // ← impede 304
+  try {
+    const fc = await fetchShipsFC();
+    res.status(200).json(fc);
+  } catch (e) {
+    console.error("ships/live error:", e);
+    res.status(500).json({ error: "failed to fetch ships" });
+  }
+});
 
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
-
 
 const { Router } = require("express");
 const v1Alias = Router();
 v1Alias.use("/alerts", v1Alerts);
 v1Alias.use("/dashboard", v1Dashboard);
 app.use("/api", v1Alias);
-
-
 
 app.use((req, res) => res.status(404).json({ error: "Not Found" }));
 app.use((err, _req, res, _next) => {
@@ -96,46 +201,44 @@ const server = app.listen(PORT, () => {
 server.setTimeout(30_000);
 
 const WebSocket = require("ws");
-
 const wss = new WebSocket.Server({ server, path: "/ws/positions" });
 
-async function fetchPositionsFC() {
-  const { rows } = await pool.query(
-    `SELECT container_id, lat, lon, speed_kn, heading_deg, voyage_code, imo, ts_iso
-       FROM container_positions
-     ORDER BY ts_iso DESC
-     LIMIT 2000`
-  );
-  return {
-    type: "FeatureCollection",
-    features: rows.map(r => ({
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [r.lon, r.lat] },
-      properties: {
-        container_id: r.container_id,
-        voyage_code: r.voyage_code,
-        imo: r.imo,
-        speed_kn: r.speed_kn,
-        heading_deg: r.heading_deg,
-        ts_iso: r.ts_iso
-      }
-    }))
-  };
-}
-
-wss.on("connection", (ws) => {
+wss.on("connection", async (ws, req) => {
+  console.log("WS client connected:", req.url);
   ws.isAlive = true;
-  ws.on("pong", () => { ws.isAlive = true; });
-  fetchPositionsFC().then(fc => { try { ws.send(JSON.stringify({ type: "positions", data: fc })); } catch(e){} });
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+  try {
+    const [ships, containers] = await Promise.all([fetchShipsFC(), fetchContainersFC()]);
+    ws.send(JSON.stringify({ type: "ships", data: ships }));
+    ws.send(JSON.stringify({ type: "containers", data: containers }));
+  } catch (e) {
+    console.error("ws first send error:", e);
+  }
+});
+
+wss.on("error", (e) => {
+  console.error("WSS error:", e);
 });
 
 setInterval(async () => {
-  const fc = await fetchPositionsFC().catch(() => null);
-  if (!fc) return;
+  let ships = null,
+    containers = null;
+  try {
+    ships = await fetchShipsFC();
+  } catch (e) {
+    console.error("ws ships tick:", e);
+  }
+  try {
+    containers = await fetchContainersFC();
+  } catch (e) {
+    console.error("ws cont tick:", e);
+  }
   wss.clients.forEach((ws) => {
-    if (ws.readyState === ws.OPEN) {
-      try { ws.send(JSON.stringify({ type: "positions", data: fc })); } catch(e){}
-    }
+    if (ws.readyState !== ws.OPEN) return;
+    if (ships) ws.send(JSON.stringify({ type: "ships", data: ships }));
+    if (containers) ws.send(JSON.stringify({ type: "containers", data: containers }));
   });
 }, 5000);
 
@@ -143,10 +246,11 @@ setInterval(() => {
   wss.clients.forEach((ws) => {
     if (ws.isAlive === false) return ws.terminate();
     ws.isAlive = false;
-    try { ws.ping(); } catch(e){}
+    try {
+      ws.ping();
+    } catch {}
   });
 }, 30000);
-
 
 async function shutdown() {
   logger.info("Graceful shutdown...");
