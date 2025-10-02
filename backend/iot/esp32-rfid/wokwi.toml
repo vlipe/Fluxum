@@ -1,5 +1,0 @@
-[wokwi]
-version = 1
-diagram = "diagram.json"
-elf = ".pio/build/esp32dev/firmware.elf"
-firmware = ".pio/build/esp32dev/firmware.bin"

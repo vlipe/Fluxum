@@ -8,6 +8,8 @@ const slowDown = require("express-slow-down");
 const { logger, requestId, httpLogger, metricsRoute } = require("./utils/observability");
 const { pool } = require("./database/db");
 
+
+
 dotenv.config();
 
 const authRoutes = require("./routes/auth.routes");
@@ -24,6 +26,9 @@ const v1Alerts = require("./routes/alerts.routes");
 const v1Dashboard = require("./routes/dashboard.routes");
 const v1GeoContainers = require("./routes/geo.containers.routes");
 const voyagesMapRouter = require("./routes/voyages_map.routes");
+
+
+
 
 const app = express();
 app.set("trust proxy", 1);
