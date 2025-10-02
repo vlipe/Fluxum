@@ -1,0 +1,11 @@
+{
+  "name": "gps-neo6m",
+  "author": "Chiranjiv Nagarajan",
+  "pins": [
+    "VCC",
+    "GND",
+    "RX",
+    "TX"
+  ],
+  "controls": []
+}
