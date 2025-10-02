@@ -5,10 +5,12 @@ import Ferramenta from "../assets/assetsNavios/ferramenta.svg";
 import Chevron from "../assets/assetsNavios/chevron.svg";
 import Navio from "../assets/assetsNavios/navio.svg";
 import Pesquisa from "../assets/assetsAlertas/pesquisar.svg";
+import { useNavigate } from "react-router-dom";
 
 const Navios = () => {
   const [filtro, setFiltro] = useState("Todos");
   const [pesquisa, setPesquisa] = useState("");
+  const navigate = useNavigate(); 
 
   const navios = [
     {
@@ -84,9 +86,8 @@ const Navios = () => {
     <div className="min-h-screen w-full bg-[#ECF2F9] flex flex-col md:flex-row relative">
       <Sidebar2 />
       <div className="flex-1 px-6 py-8">
-        {/* barra de pesquisa */}
+
         <div className="flex justify-between">
-            <h2></h2>
         <div className="relative flex-1 max-w-full sm:max-w-4xl mb-4">
           <input
             type="text"
@@ -104,15 +105,13 @@ const Navios = () => {
         </div>
 
         <div className="bg-white rounded-xl flex flex-col px-4 md:px-8 py-6">
-          {/* título */}
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-GT mb-8">Gerenciamento de Navios</h2>
-            <button className="bg-[#ECF2F9] mb-6 text-azulEscuro text-[12px] font-medium px-6 py-2 rounded-full hover:bg-white duration-300 cursor-pointer">
+            <button type="button" onClick={() => navigate("/FormNavio")} className="bg-[#ECF2F9] mb-6 text-azulEscuro text-[12px] font-medium px-6 py-2 rounded-full hover:bg-white duration-300 cursor-pointer">
               Adicionar Navio
             </button>
           </div>
 
-          {/* abas de filtro */}
           <div className="bg-[#ECF2F9] flex overflow-x-auto scrollbar-hide rounded-full w-1/2 h-12 mb-6 gap-1">
             {filtros.map((aba) => {
               const ativa = filtro === aba;
@@ -133,7 +132,6 @@ const Navios = () => {
             })}
           </div>
 
-          {/* cards */}
           <div className="grid grid-cols-2 gap-6">
             {filtrarNavios().map((n, i) => (
               <div

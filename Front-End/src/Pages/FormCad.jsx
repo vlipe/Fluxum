@@ -39,7 +39,7 @@ const Checkbox = ({ label, checked, onChange }) => {
 
 const FormCad = () => {
     const navigate = useNavigate(); 
-    
+
   const [formData, setFormData] = useState({
     idDispositivo: "",
     apelido: "",
@@ -103,7 +103,7 @@ const FormCad = () => {
             placeholder="Insira o ID do dispositivo . . ."
             value={formData.idDispositivo}
             onChange={handleChange}
-            className="w-full h-12 rounded-xl bg-[#F4F7FB] px-4 text-[13px] font-medium
+            className="w-full h-12 rounded-xl bg-[#F4F7FB] px-4 text-[13px] text-[#3E41C0] font-medium
                        focus:outline-none focus:ring-2 focus:ring-violeta
                        placeholder:text-[#3E41C0] placeholder:opacity-50"
           />
@@ -119,7 +119,7 @@ const FormCad = () => {
             placeholder="Insira o apelido do dispositivo . . ."
             value={formData.apelido}
             onChange={handleChange}
-            className="w-full h-12 rounded-xl bg-[#F4F7FB] px-4 text-[13px] font-medium
+            className="w-full h-12 rounded-xl bg-[#F4F7FB] px-4 text-[13px] text-[#3E41C0] font-medium
                        focus:outline-none focus:ring-2 focus:ring-violeta
                        placeholder:text-[#3E41C0] placeholder:opacity-50"
           />

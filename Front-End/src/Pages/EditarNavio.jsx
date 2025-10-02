@@ -37,7 +37,7 @@ const Checkbox = ({ label, checked, onChange }) => {
   );
 };
 
-const FormNavio = () => {
+const EditarNavio = () => {
     const navigate = useNavigate(); 
     
   const [formData, setFormData] = useState({
@@ -77,7 +77,7 @@ const FormNavio = () => {
 <div className="flex flex-col items-center justify-center w-full px-6">
 
       <h2 className="text-2xl font-GT text-azulEscuro mb-6 text-center">
-        Cadastrar um Navio
+        Editar Navio
       </h2>
 
       <form
@@ -161,7 +161,7 @@ const FormNavio = () => {
             type="submit" onClick={() => navigate("/DetalhesNavio")}
             className="w-full sm:w-36 h-10 rounded-xl font-medium bg-violeta text-white text-[14px] hover:bg-roxo duration-300"
           >
-            Cadastrar
+            Salvar
           </button>
         </div>
       </form>
@@ -170,4 +170,4 @@ const FormNavio = () => {
   );  
 };
 
-export default FormNavio;
+export default EditarNavio;

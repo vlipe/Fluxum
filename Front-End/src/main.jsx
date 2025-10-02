@@ -17,6 +17,8 @@ import FormCad from "./Pages/FormCad.jsx";
 import Lista from "./Pages/Lista.jsx";
 import Navios from "./Pages/Navios.jsx";
 import FormNavio from "./Pages/FormNavio.jsx";
+import DetalhesNavio from "./Pages/DetalhesNavio.jsx";
+import EditarNavio from "./Pages/EditarNavio.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
@@ -35,6 +37,8 @@ const router = createBrowserRouter([
       { path: "/FormCad", element: <FormCad /> },
       { path: "/Lista", element: <Lista /> },
       { path: "/FormNavio", element: <FormNavio /> },
+      { path: "/DetalhesNavio", element: <DetalhesNavio /> },
+      { path: "/EditarNavio", element: <EditarNavio /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
