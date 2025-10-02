@@ -70,7 +70,7 @@ const Relatorios = () => {
 
         <div className="bg-white rounded-3xl p-6 lg:p-8">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h1 className="text-2xl font-bold font-GT text-azulEscuro">Relatórios</h1>
+            <h1 className="text-xl font-bold font-GT text-azulEscuro">Relatórios</h1>
             <button className="bg-[#ECF2F9] text-azulEscuro font-medium rounded-2xl py-2 px-5 text-xs hover:bg-white duration-300">
               Exportar PDF
             </button>
