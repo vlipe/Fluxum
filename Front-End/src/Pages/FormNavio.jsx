@@ -37,7 +37,7 @@ const Checkbox = ({ label, checked, onChange }) => {
   );
 };
 
-const FormCad = () => {
+const FormNavio = () => {
     const navigate = useNavigate(); 
     
   const [formData, setFormData] = useState({
@@ -269,4 +269,4 @@ const FormCad = () => {
   );  
 };
 
-export default FormCad;
+export default FormNavio;

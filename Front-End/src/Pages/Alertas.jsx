@@ -101,7 +101,7 @@ const Alertas = () => {
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
           <p className="mr-4 text-xl">
-            Oi, <span className="text-[#3E41C0]">Felipe</span>!
+            
           </p>
 
           <div className="relative flex-1 max-w-full sm:max-w-4xl">
@@ -110,7 +110,7 @@ const Alertas = () => {
               placeholder="Pesquisar alerta"
               value={pesquisa}
               onChange={(e) => setPesquisa(e.target.value)}
-              className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none"
+              className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none shadow-sm"
             />
             <img
               src={Pesquisa}
@@ -128,14 +128,14 @@ const Alertas = () => {
             </h1>
           </div>
 
-          <div className="bg-[#F2F6FB] flex overflow-x-auto scrollbar-hide rounded-full h-12 mb-6 gap-1">
+          <div className="bg-[#F2F6FB] flex overflow-x-auto scrollbar-hide rounded-full h-12 w-1/2 mb-6 gap-1">
             {abas.map((aba) => {
               const ativa = abaSelecionada === aba;
               return (
                 <button
                   key={aba}
                   onClick={() => setAbaSelecionada(aba)}
-                  className={`flex-shrink-0 flex justify-center items-center px-4 font-normal transition-all duration-500 
+                  className={`flex-shrink-0 flex justify-center items-center px-9 font-normal transition-all duration-500 
                   ${
                     ativa
                       ? "bg-violeta text-white shadow-[4px_0px_3px_rgba(91,97,179,0.4)] rounded-full"

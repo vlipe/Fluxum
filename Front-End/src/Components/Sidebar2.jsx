@@ -4,7 +4,6 @@ import Link from "@mui/material/Link";
 import Logo from "../assets/logo.svg";
 import Foto from "../assets/assetsLogin/usuario.png";
 
-// SVGs normais e hover
 import Caixa from "../assets/assetsDashboard/caixa.svg";
 import Caixa2 from "../assets/assetsDashboard/caixa2.svg";
 
@@ -17,27 +16,28 @@ import Mapa2 from "../assets/assetsDashboard/mapa2.svg";
 import Alerta from "../assets/assetsDashboard/alerta.svg";
 import Alerta2 from "../assets/assetsDashboard/alerta2.svg";
 
+import Navio2 from "../assets/assetsDashboard/navio.svg";
+import Navio from "../assets/assetsDashboard/navio2.svg";
+
 import Home from "../assets/assetsDashboard/home.svg";
 
 const Sidebar2 = () => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
 
-  // Hover state para cada item
   const [hovered, setHovered] = useState({
     dashboard: false,
     relatorios: false,
     mapa: false,
     alertas: false,
+    navio: false,
   });
 
   return (
     <div className="bg-white w-2/12 rounded-[35px] flex flex-col justify-between my-6 mb-12 ml-4 sm:mb-12 sm:w-24">
-      {/* Topo - Logo e Menu */}
       <div className="w-full mt-2 flex flex-col gap-y-4 items-center">
-        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16"/>
+        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16" />
 
-        {/* DASHBOARD */}
         <Link
           to="/Dashboard"
           component={RouterLink}
@@ -57,7 +57,6 @@ const Sidebar2 = () => {
           />
         </Link>
 
-        {/* RELATÓRIOS */}
         <Link
           to="/Relatorios"
           component={RouterLink}
@@ -71,17 +70,12 @@ const Sidebar2 = () => {
           }`}
         >
           <img
-            src={
-              isActive("/Relatorios") || hovered.relatorios
-                ? Grafico2
-                : Grafico
-            }
+            src={isActive("/Relatorios") || hovered.relatorios ? Grafico2 : Grafico}
             className="mx-auto"
             alt="Relatórios"
           />
         </Link>
 
-        {/* MAPA */}
         <Link
           to="/Mapa"
           component={RouterLink}
@@ -101,7 +95,6 @@ const Sidebar2 = () => {
           />
         </Link>
 
-        {/* ALERTAS */}
         <Link
           to="/Alertas"
           component={RouterLink}
@@ -120,9 +113,27 @@ const Sidebar2 = () => {
             alt="Alertas"
           />
         </Link>
+
+        <Link
+          to="/Navios"
+          component={RouterLink}
+          underline="none"
+          onMouseEnter={() => setHovered({ ...hovered, navio: true })}
+          onMouseLeave={() => setHovered({ ...hovered, navio: false })}
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+            isActive("/Navios")
+              ? "bg-violeta cursor-default"
+              : "hover:bg-violeta/70 cursor-pointer duration-700"
+          }`}
+        >
+          <img
+            src={isActive("/Navios") || hovered.navio ? Navio : Navio2}
+            className="mx-auto"
+            alt="Navios"
+          />
+        </Link>
       </div>
 
-      {/* Rodapé */}
       <div className="w-full flex flex-col items-center gap-4 mb-6">
         <Link
           to="/Home"
@@ -137,18 +148,17 @@ const Sidebar2 = () => {
           <img src={Home} className="mx-auto" alt="Home" />
         </Link>
 
-<Link
-  to="/Perfil"
-  component={RouterLink}
-  underline="none"
->
-  <img
-    src={Foto}
-    alt="Foto de Perfil"
-    className="w-12 h-12 rounded-full object-cover"
-  />
-</Link>
-
+        <Link
+          to="/Perfil"
+          component={RouterLink}
+          underline="none"
+        >
+          <img
+            src={Foto}
+            alt="Foto de Perfil"
+            className="w-12 h-12 rounded-full object-cover"
+          />
+        </Link>
       </div>
     </div>
   );

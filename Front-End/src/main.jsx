@@ -14,13 +14,15 @@ import PrivateRoute from "./routes/PrivateRoute.jsx";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import ResetPassword from "./Pages/ResetPassword.jsx";
 import FormCad from "./Pages/FormCad.jsx";
+import Lista from "./Pages/Lista.jsx";
+import Navios from "./Pages/Navios.jsx";
+import FormNavio from "./Pages/FormNavio.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/Login", element: <Login /> },
   { path: "/reset-password", element: <ResetPassword /> },
   { path: "/oauth/success", element: <OAuthSuccess /> },
-  { path: "/FormCad", element: <FormCad /> },
   {
     element: <PrivateRoute />,
     children: [
@@ -29,6 +31,10 @@ const router = createBrowserRouter([
       { path: "/Relatorios", element: <Relatorios /> },
       { path: "/Perfil", element: <Perfil /> },
       { path: "/Dashboard", element: <Dashboard /> },
+      { path: "/Navios", element: <Navios /> },
+      { path: "/FormCad", element: <FormCad /> },
+      { path: "/Lista", element: <Lista /> },
+      { path: "/FormNavio", element: <FormNavio /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },
