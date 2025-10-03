@@ -34,9 +34,22 @@ const Sidebar2 = () => {
   });
 
   return (
-    <div className="bg-white w-2/12 rounded-[35px] flex flex-col justify-between my-6 mb-12 ml-4 sm:mb-12 sm:w-24">
-      <div className="w-full mt-2 flex flex-col gap-y-4 items-center">
-        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16" />
+    <div
+      className="
+        bg-white rounded-[35px] flex justify-between
+        my-6 ml-4 mb-12 sm:mb-12
+        w-1/12 h-full flex-col
+        max-[760px]:fixed max-[760px]:top-0 max-[760px]:left-0 max-[760px]:w-11/12 max-[760px]:h-16 max-[760px]:flex-row max-[760px]:items-center max-[760px]:px-4 max-[760px]:z-50 max-[760px]:shadow-sm
+      "
+    >
+      <div
+        className="
+          w-full flex flex-col gap-y-4 items-center
+          mt-2
+          max-[760px]:flex-row max-[760px]:justify-start max-[760px]:gap-x-6 max-[760px]:mt-0
+        "
+      >
+        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16 max-[760px]:mt-0 max-[760px]:mb-0 max-[760px]:w-8" />
 
         <Link
           to="/Dashboard"
@@ -44,7 +57,7 @@ const Sidebar2 = () => {
           underline="none"
           onMouseEnter={() => setHovered({ ...hovered, dashboard: true })}
           onMouseLeave={() => setHovered({ ...hovered, dashboard: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 max-[760px]:rounded-[10px] ${
             isActive("/Dashboard")
               ? "bg-violeta cursor-default"
               : "hover:bg-violeta/70 cursor-pointer duration-300"
@@ -63,7 +76,7 @@ const Sidebar2 = () => {
           underline="none"
           onMouseEnter={() => setHovered({ ...hovered, relatorios: true })}
           onMouseLeave={() => setHovered({ ...hovered, relatorios: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
             isActive("/Relatorios")
               ? "bg-violeta cursor-default"
               : "hover:bg-violeta/70 cursor-pointer duration-700"
@@ -82,7 +95,7 @@ const Sidebar2 = () => {
           underline="none"
           onMouseEnter={() => setHovered({ ...hovered, mapa: true })}
           onMouseLeave={() => setHovered({ ...hovered, mapa: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
             isActive("/Mapa")
               ? "bg-violeta cursor-default"
               : "hover:bg-violeta/70 cursor-pointer duration-700"
@@ -101,7 +114,7 @@ const Sidebar2 = () => {
           underline="none"
           onMouseEnter={() => setHovered({ ...hovered, alertas: true })}
           onMouseLeave={() => setHovered({ ...hovered, alertas: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
             isActive("/Alertas")
               ? "bg-violeta cursor-default"
               : "hover:bg-violeta/70 cursor-pointer duration-700"
@@ -120,7 +133,7 @@ const Sidebar2 = () => {
           underline="none"
           onMouseEnter={() => setHovered({ ...hovered, navio: true })}
           onMouseLeave={() => setHovered({ ...hovered, navio: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 ${
+          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
             isActive("/Navios")
               ? "bg-violeta cursor-default"
               : "hover:bg-violeta/70 cursor-pointer duration-700"
@@ -134,29 +147,28 @@ const Sidebar2 = () => {
         </Link>
       </div>
 
-      <div className="w-full flex flex-col items-center gap-4 mb-6">
+      <div
+        className="
+          w-full flex flex-col items-center gap-4 mb-6
+          max-[760px]:flex-row max-[760px]:mb-0 max-[760px]:gap-x-6 max-[760px]:justify-end
+        "
+      >
         <Link
           to="/Home"
           component={RouterLink}
           underline="none"
-          className={`py-8 flex w-16 mx-auto rounded-[18px] sm:max-w-8 ${
-            isActive("/Home")
-              ? "bg-violeta cursor-default"
-              : "cursor-pointer"
+          className={`py-8 flex w-16 mx-auto rounded-[18px] sm:max-w-8 max-[760px]:w-12 max-[760px]:h-12 ${
+            isActive("/Home") ? "bg-violeta cursor-default" : "cursor-pointer"
           }`}
         >
           <img src={Home} className="mx-auto" alt="Home" />
         </Link>
 
-        <Link
-          to="/Perfil"
-          component={RouterLink}
-          underline="none"
-        >
+        <Link to="/Perfil" component={RouterLink} underline="none">
           <img
             src={Foto}
             alt="Foto de Perfil"
-            className="w-12 h-12 rounded-full object-cover"
+            className="w-8 h-8 rounded-full object-cover"
           />
         </Link>
       </div>

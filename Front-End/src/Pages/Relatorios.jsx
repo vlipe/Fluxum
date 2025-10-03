@@ -53,10 +53,10 @@ const Relatorios = () => {
   return (
     <div className="min-h-screen w-full bg-[#F2F6FB] flex">
       <Sidebar2 />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-[760px]:mt-16">
    
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-          <div className="relative flex-1 max-w-full sm:max-w-4xl">
+          <div className="relative flex-1 max-w-full sm:max-w-4xl max-[760px]:hidden">
                         <input
                           type="text"
                           placeholder="Pesquisar por palavra-chave..."

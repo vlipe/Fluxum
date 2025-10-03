@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import Sidebar2 from "../Components/Sidebar2";
+import Rota from "../assets/assetsDashboard/rota.svg";
+import Lixeira from "../assets/assetsDashboard/lixeira.svg";;
 import { apiFetch } from "../lib/api";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { bbox as turfBbox } from "@turf/turf";
+
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function waitForImages(m, ids, maxMs = 2000) {
@@ -93,8 +96,8 @@ export default function Mapa() {
   const map = useRef(null);
   const wsRef = useRef(null);
 
-  const [positions, setPositions] = useState(null); // containers (FeatureCollection)
-  const [ships, setShips] = useState(null);         // ships agregados por voyage (FeatureCollection)
+  const [positions, setPositions] = useState(null);
+  const [ships, setShips] = useState(null);        
   const [track, setTrack] = useState(null);
   const [q, setQ] = useState("");
   const [voyageCode, setVoyageCode] = useState("");
@@ -166,7 +169,6 @@ export default function Mapa() {
     }
   }, []);
 
-  // init / trocar style
   useEffect(() => {
     if (!mapRef.current) return;
     if (!map.current) {
@@ -214,12 +216,10 @@ export default function Mapa() {
     }
   }, [mapStyle, registerImagesAndOverlay]);
 
-  // bootstrap HTTP + WS
-  // adicione no topo do componente
   const wsInit = useRef(false);
 
   useEffect(() => {
-    if (wsInit.current) return;     // evita dupla execução no StrictMode
+    if (wsInit.current) return;  
     wsInit.current = true;
 
     let alive = true;
@@ -244,7 +244,6 @@ export default function Mapa() {
     const ws = new WebSocket(`${scheme}://${location.hostname}:3000/ws/positions`);
     wsRef.current = ws;
 
-    // evita log barulhento de erro no console do browser
     ws.onerror = () => { };
 
     ws.onmessage = (evt) => {
@@ -271,7 +270,6 @@ export default function Mapa() {
   }, []);
 
 
-  // track/great-circle por voyage
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -298,7 +296,6 @@ export default function Mapa() {
     return () => { alive = false; };
   }, [voyageCode, routeMode]);
 
-  // filtro de containers
   const filterExpr = useMemo(() => {
     const term = q.trim().toLowerCase();
     if (!term) return ["boolean", true];
@@ -310,7 +307,6 @@ export default function Mapa() {
     ];
   }, [q]);
 
-  // destaca a trilha do navio (derivada dos containers da mesma voyage)
   const highlightShipTrail = useCallback((shipKey, shipLngLat, label = "") => {
     const m = map.current;
     if (!m) return;
@@ -391,7 +387,6 @@ export default function Mapa() {
     } catch (err) { console.warn(err); }
   }, [positions]);
 
-  // rota planejada (origem/destino)
   const drawPlannedRoute = useCallback(() => {
     const m = map.current;
     if (!m) return;
@@ -440,7 +435,6 @@ export default function Mapa() {
 
   useEffect(() => { if (!map.current) return; drawPlannedRoute(); }, [styleVersion, drawPlannedRoute]);
 
-  // clique para escolher origem/destino
   useEffect(() => {
     const m = map.current;
     if (!m) return;
@@ -460,7 +454,6 @@ export default function Mapa() {
     return () => { try { m.off("click", onMapClickPlan); } catch (err) { console.warn(err); } };
   }, [planning, origin, destination]);
 
-  // requisita rota planejada (API)
   useEffect(() => {
     const doRoute = async () => {
       if (!origin || !destination) return;
@@ -516,7 +509,6 @@ export default function Mapa() {
 
   useEffect(() => { drawPlannedRoute(); }, [plannedRoute, plannedEnds, drawPlannedRoute]);
 
-  // desenha/atualiza camadas
   useEffect(() => {
   const m = map.current;
   if (!m) return;
@@ -526,7 +518,7 @@ export default function Mapa() {
   const trackSrcId = "track";
 
   const ensure = async () => {
-    // 1) CONTAINERS (cria/atualiza mesmo que ships não exista)
+  
     if (positions) {
       if (m.getSource(contSrc)) {
         try { m.getSource(contSrc).setData(positions); } catch (err) { console.warn(err); }
@@ -604,7 +596,6 @@ export default function Mapa() {
         } catch (err) { console.warn(err); }
       }
 
-      // aplica filtro aos containers (se a layer já existir)
       try {
         if (m.getLayer("containers-unclustered")) {
           m.setFilter("containers-unclustered", ["all", ["!", ["has", "point_count"]], filterExpr]);
@@ -612,7 +603,6 @@ export default function Mapa() {
       } catch (err) { console.warn(err); }
     }
 
-    // 2) SHIPS (cria/atualiza mesmo que containers não exista)
     if (ships) {
       if (m.getSource(shipSrc)) {
         try { m.getSource(shipSrc).setData(ships); } catch (err) { console.warn(err); }
@@ -694,7 +684,6 @@ export default function Mapa() {
           m.on("mouseenter", shipLayerId, () => { m.getCanvas().style.cursor = "pointer"; });
           m.on("mouseleave", shipLayerId, () => { m.getCanvas().style.cursor = ""; });
 
-          // clique fora limpa overlays
           m.on("click", (ev) => {
             try {
               const layersToCheck = [
@@ -731,7 +720,6 @@ export default function Mapa() {
       }
     }
 
-    // 3) TRACK buscado por voyage (independente)
     if (track) {
       try {
         if (m.getSource(trackSrcId)) m.getSource(trackSrcId).setData(track);
@@ -751,7 +739,6 @@ export default function Mapa() {
       } catch (err) { console.warn(err); }
     }
 
-    // 4) Enquadramento quando NÃO há track:
     if (!track) {
       if (ships?.features?.length) {
         try {
@@ -783,51 +770,52 @@ export default function Mapa() {
     <div className="min-h-screen w-full bg-deletar flex flex-col md:flex-row relative">
       <Sidebar2 />
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-          <p className="mr-4 text-xl">Oi, <span className="text-[#3E41C0]">Felipe</span>!</p>
-          <div className="flex gap-2 w-full sm:w-auto items-center">
-            <input type="text" placeholder="Filtrar por container/viagem/IMO" value={q} onChange={(e) => setQ(e.target.value)} className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" />
-            <input type="text" placeholder="Código da viagem (ex.: VOY-001)" value={voyageCode} onChange={(e) => setVoyageCode(e.target.value)} className="w-full h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" />
-            <select value={routeMode} onChange={(e) => setRouteMode(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none">
-              <option value="track">Track</option>
-              <option value="great-circle">Great Circle</option>
-            </select>
-            <select value={baseStyle} onChange={(e) => setBaseStyle(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none" title="Tipo de mapa">
-              <option value="streets">Streets</option>
-              <option value="satellite">Satellite</option>
-            </select>
-            <button
-              type="button"
-              onClick={() => {
-                const on = !planning;
-                setPlanning(on);
-                if (on) {
-                  setOrigin(null);
-                  setDestination(null);
-                  setPlannedRoute(null);
-                  setPlannedEnds(null);
-                }
-              }}
-              className={`h-12 rounded-3xl px-4 text-sm font-medium ${planning ? "bg-emerald-600 text-white" : "bg-white"}`}
-              title="Clique no mapa: primeiro ponto = origem, segundo = destino"
-            >
-              {planning ? "Planejando… clique 2 pontos" : "Planejar rota"}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setOrigin(null);
-                setDestination(null);
-                setPlannedRoute(null);
-                setPlannedEnds(null);
-                setPlanning(false);
-              }}
-              className="h-12 rounded-3xl px-4 text-sm bg-white"
-            >
-              Limpar rota
-            </button>
-          </div>
-        </div>
+<div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+  <div className="flex gap-2 w-full flex-wrap justify-center">
+    <input type="text" placeholder="Filtrar por contêiner/viagem/IMO" value={q} onChange={(e) => setQ(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none flex-grow min-w-[200px]" />
+    <input type="text" placeholder="Código da viagem" value={voyageCode} onChange={(e) => setVoyageCode(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none w-72" />
+    <select value={baseStyle} onChange={(e) => setBaseStyle(e.target.value)} className="h-12 rounded-3xl text-azulEscuro bg-white px-6 text-sm focus:outline-none cursor-pointer" title="Tipo de mapa">
+      <option value="streets">Ruas</option>
+      <option value="satellite">Satélite</option>
+    </select>
+    <button
+      type="button"
+      onClick={() => {
+        const on = !planning;
+        setPlanning(on);
+        if (on) {
+          setOrigin(null);
+          setDestination(null);
+          setPlannedRoute(null);
+          setPlannedEnds(null);
+        }
+      }}
+      className={`h-12 rounded-3xl px-6 text-sm font-regular flex items-center justify-center gap-2 transition-colors duration-300 ${
+        planning
+          ? "bg-emerald-600 text-white"
+          : "bg-violeta text-white hover:bg-roxo"
+      }`}
+      title="Clique no mapa: primeiro ponto = origem, segundo = destino"
+    >
+      <img src={Rota} alt="" className="w-4 h-4" />
+      {planning ? "Clique em 2 pontos" : "Planejar Rota"}
+    </button>
+    <button
+      type="button"
+      onClick={() => {
+        setOrigin(null);
+        setDestination(null);
+        setPlannedRoute(null);
+        setPlannedEnds(null);
+        setPlanning(false);
+      }}
+      className="h-12 rounded-3xl px-6 text-sm font-regular flex items-center justify-center gap-2 bg-white text-[#F21D4E] hover:bg-[#ECF2F9] hover:text-red-600 transition-colors duration-300"
+    >
+      <img src={Lixeira} alt="" className="w-4 h-4" />
+      Limpar Rota
+    </button>
+  </div>
+</div>
 
         <div className="bg-white rounded-xl flex flex-col px-4 md:px-8 py-6 h-full">
           <div className="flex justify-between items-center mb-4">

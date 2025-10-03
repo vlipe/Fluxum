@@ -205,7 +205,7 @@ const Dashboard = () => {
   return (
     <div className="flex min-h-screen w-full bg-[#ECF2F9]">
       <Sidebar2 />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-[760px]:mt-8">
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <p className="text-xl text-azulEscuro">
@@ -217,7 +217,7 @@ const Dashboard = () => {
               placeholder="Pesquisar por palavra-chave..."
               value={pesquisa}
               onChange={(e) => setPesquisa(e.target.value)}
-              className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none shadow-sm"
+              className="w-full h-12 rounded-3xl bg-white pl-16 pr-4 text-sm focus:outline-none shadow-sm max-[760px]:hidden"
             />
             <img src={Pesquisa} alt="Pesquisar" className="w-5 h-5 absolute ml-6 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>

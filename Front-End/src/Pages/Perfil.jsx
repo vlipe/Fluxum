@@ -3,6 +3,8 @@ import Sidebar2 from "../Components/Sidebar2";
 import { useAuth } from "../context/AuthContext";
 import FotoDefault from "../assets/assetsLogin/usuario.png";
 import { apiFetch } from "../lib/api";
+import Cropper from 'react-easy-crop';
+import { getCroppedImg } from '../lib/cropImage';
 
 const FormInput = ({ label, type = "text", name, defaultValue, placeholder, readOnly = false }) => (
   <div>
@@ -26,13 +28,36 @@ export default function Perfil() {
   const { user } = useAuth();
   const [saving, setSaving] = useState(false);
 
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
   const handleImageChange = (event) => {
     const file = event.target.files[0];
     if (file && (file.type === "image/png" || file.type === "image/jpeg")) {
       const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+      setImageToCrop(imageUrl);
     } else {
       alert("Por favor, selecione uma imagem PNG ou JPG.");
+    }
+  };
+
+  const onCropComplete = (croppedArea, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const showCroppedImage = async () => {
+    try {
+      const croppedImageBlob = await getCroppedImg(
+        imageToCrop,
+        croppedAreaPixels
+      );
+      const croppedImageUrl = URL.createObjectURL(croppedImageBlob);
+      setProfileImage(croppedImageUrl);
+      setImageToCrop(null);
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -71,7 +96,12 @@ export default function Perfil() {
             <div>
               <label className="block text-sm text-azulEscuro mb-2">Foto de Perfil</label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
-                <img src={profileImage} alt="Foto de Perfil" className="w-20 h-20 rounded-full object-cover self-center sm:self-start" />
+                <img 
+  src={profileImage} 
+  alt="Foto de Perfil" 
+  className="w-20 h-20 rounded-full object-cover self-center sm:self-start max-[760px]:w-12 max-[760px]:h-12" 
+/>
+
                 <input type="file" accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <button type="button" onClick={triggerFileInput} className="w-full sm:w-auto px-5 py-2.5 bg-violeta text-white text-[12px] rounded-xl hover:bg-roxo transition-all duration-300">Atualizar foto</button>
@@ -89,6 +119,29 @@ export default function Perfil() {
               </button>
             </div>
           </form>
+
+          {imageToCrop && (
+            <div className="fixed inset-0 bg-black bg-opacity-70 flex flex-col items-center justify-center z-50">
+              <div className="relative w-full max-w-lg h-96 bg-gray-800 rounded-lg">
+                <Cropper
+                  image={imageToCrop}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  cropShape="round"
+                  showGrid={false}
+                />
+              </div>
+              <div className="mt-4 flex gap-4">
+                <button onClick={showCroppedImage} className="px-6 py-2 bg-violeta text-white rounded-lg">Cortar</button>
+                <button onClick={() => setImageToCrop(null)} className="px-6 py-2 bg-gray-500 text-white rounded-lg">Cancelar</button>
+              </div>
+            </div>
+          )}
+          
         </div>
       </div>
     </div>
