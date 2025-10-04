@@ -1,10 +1,14 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Sidebar2 from "../Components/Sidebar2";
 import { useAuth } from "../context/AuthContext";
 import FotoDefault from "../assets/assetsLogin/usuario.png";
 import { apiFetch } from "../lib/api";
 import Cropper from 'react-easy-crop';
 import { getCroppedImg } from '../lib/cropImage';
+
+const API = import.meta.env.VITE_API_URL || "";
+const toAbsolute = (u) => (!u ? u : (u.startsWith("http") ? u : API.replace(/\/$/, "") + u));
+
 
 const FormInput = ({ label, type = "text", name, defaultValue, placeholder, readOnly = false }) => (
   <div>
@@ -21,6 +25,9 @@ const FormInput = ({ label, type = "text", name, defaultValue, placeholder, read
   </div>
 );
 
+
+
+
 export default function Perfil() {
   const [profileImage, setProfileImage] = useState(FotoDefault);
   const fileInputRef = useRef(null);
@@ -32,6 +39,21 @@ export default function Perfil() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+
+
+  
+useEffect(() => {
+  (async () => {
+    try {
+      const me = await apiFetch("/api/users/me", { auth: true });
+      if (me?.avatar_url) setProfileImage(toAbsolute(me.avatar_url));
+    } catch(err) { console.warn(err) }
+  })();
+}, []);
+
+
+
+
 
   const handleImageChange = (event) => {
     const file = event.target.files[0];
@@ -47,19 +69,40 @@ export default function Perfil() {
     setCroppedAreaPixels(croppedAreaPixels);
   };
 
-  const showCroppedImage = async () => {
-    try {
-      const croppedImageBlob = await getCroppedImg(
-        imageToCrop,
-        croppedAreaPixels
-      );
-      const croppedImageUrl = URL.createObjectURL(croppedImageBlob);
-      setProfileImage(croppedImageUrl);
-      setImageToCrop(null);
-    } catch (e) {
-      console.error(e);
+ const showCroppedImage = async () => {
+  try {
+    const blob = await getCroppedImg(imageToCrop, croppedAreaPixels);
+
+    let id = user?.id || user?.sub;
+    if (!id) {
+      const me = await apiFetch("/api/users/me", { auth: true });
+      id = me?.id;
+      if (!id) throw new Error("Usuário não identificado");
     }
-  };
+
+    const fd = new FormData();
+    fd.append("avatar", blob, "avatar.jpg");
+
+    const u = await apiFetch(`/api/users/${id}/avatar`, {
+      method: "POST",
+      auth: true,
+      body: fd,
+    });
+
+    if (u?.avatar_url) {
+      const abs = toAbsolute(u.avatar_url);
+      setProfileImage(abs); // ou abs + "?t="+Date.now() p/ bust de cache
+      window.dispatchEvent(new CustomEvent("avatar:updated", { detail: { url: u.avatar_url } }));
+    }
+    setImageToCrop(null);
+  } catch (e) {
+    console.error(e);
+    alert(e.message || "Falha ao enviar avatar");
+  }
+};
+
+
+
 
   const triggerFileInput = () => {
     if (fileInputRef.current) fileInputRef.current.click();
@@ -89,7 +132,30 @@ export default function Perfil() {
   } finally {
     setSaving(false);
   }
+
+  
 }
+
+const handleDeleteAvatar = async () => {
+  try {
+    let id = user?.id || user?.sub;
+    if (!id) {
+      const me = await apiFetch("/api/users/me", { auth: true });
+      id = me?.id;
+    }
+    if (!id) throw new Error("Usuário não identificado");
+
+    await apiFetch(`/api/users/${id}/avatar`, { method: "DELETE", auth: true });
+    setProfileImage(FotoDefault);
+    window.dispatchEvent(new CustomEvent("avatar:updated", { detail: { url: null } }));
+  } catch (e) {
+    alert(e.message || "Falha ao deletar avatar");
+  }
+};
+
+
+
+
 
 
   return (
@@ -105,13 +171,12 @@ export default function Perfil() {
                 <img 
   src={profileImage} 
   alt="Foto de Perfil" 
-  className="w-20 h-20 rounded-full object-cover self-center sm:self-start max-[760px]:w-12 max-[760px]:h-12" 
-/>
+  className="w-20 h-20 rounded-full object-cover self-center sm:self-start max-[760px]:w-12 max-[760px]:h-12" />
 
                 <input type="file" accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleImageChange} className="hidden" />
                 <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                   <button type="button" onClick={triggerFileInput} className="w-full sm:w-auto px-5 py-2.5 bg-violeta text-white text-[12px] rounded-xl hover:bg-roxo transition-all duration-300">Atualizar foto</button>
-                  <button type="button" onClick={() => setProfileImage(FotoDefault)} className="w-full sm:w-auto px-6 py-2.5 bg-deletar text-delete text-[12px] font-medium rounded-xl hover:bg-slate-200 transition-all duration-300">Deletar foto</button>
+                  <button type="button" onClick={handleDeleteAvatar} className="w-full sm:w-auto px-6 py-2.5 bg-deletar text-delete text-[12px] font-medium rounded-xl hover:bg-slate-200 transition-all duration-300">Deletar foto</button>
                 </div>
               </div>
             </div>

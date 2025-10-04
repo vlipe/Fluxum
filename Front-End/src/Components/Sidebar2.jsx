@@ -1,8 +1,9 @@
 import { Link as RouterLink, useLocation } from "react-router-dom";
-import { useState } from "react";
 import Link from "@mui/material/Link";
 import Logo from "../assets/logo.svg";
 import Foto from "../assets/assetsLogin/usuario.png";
+
+import { useState, useEffect } from "react";
 
 import Caixa from "../assets/assetsDashboard/caixa.svg";
 import Caixa2 from "../assets/assetsDashboard/caixa2.svg";
@@ -19,7 +20,14 @@ import Alerta2 from "../assets/assetsDashboard/alerta2.svg";
 import Navio2 from "../assets/assetsDashboard/navio.svg";
 import Navio from "../assets/assetsDashboard/navio2.svg";
 
+import FotoDefault from "../assets/assetsLogin/usuario.png";  
+import { apiFetch } from "../lib/api"; 
+
 import Home from "../assets/assetsDashboard/home.svg";
+
+const API = import.meta.env.VITE_API_URL || "";
+const toAbsolute = (u) => (!u ? u : (u.startsWith("http") ? u : API.replace(/\/$/, "") + u));
+
 
 const Sidebar2 = () => {
   const location = useLocation();
@@ -32,6 +40,34 @@ const Sidebar2 = () => {
     alertas: false,
     navio: false,
   });
+
+
+  const [avatar, setAvatar] = useState(FotoDefault);
+
+  
+  useEffect(() => {
+    let live = true;
+
+    // carrega avatar atual
+    apiFetch("/api/users/me", { auth: true })
+      .then((me) => {
+        if (!live) return;
+        setAvatar(me?.avatar_url ? toAbsolute(me.avatar_url) : FotoDefault);
+      })
+      .catch(() => {});
+
+    // escuta atualização vinda da tela de Perfil
+    const onUpd = (e) => {
+      const url = e.detail?.url;
+      setAvatar(url ? toAbsolute(url) : FotoDefault);
+    };
+    window.addEventListener("avatar:updated", onUpd);
+
+    return () => {
+      live = false;
+      window.removeEventListener("avatar:updated", onUpd);
+    };
+  }, []);
 
   return (
     <div
@@ -164,13 +200,14 @@ const Sidebar2 = () => {
           <img src={Home} className="mx-auto" alt="Home" />
         </Link>
 
-        <Link to="/Perfil" component={RouterLink} underline="none">
+               <Link to="/Perfil" component={RouterLink} underline="none">
           <img
-            src={Foto}
+            src={avatar}
             alt="Foto de Perfil"
             className="w-8 h-8 rounded-full object-cover"
           />
         </Link>
+
       </div>
     </div>
   );

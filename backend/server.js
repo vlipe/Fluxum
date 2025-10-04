@@ -7,6 +7,8 @@ const rateLimit = require("express-rate-limit");
 const slowDown = require("express-slow-down");
 const { logger, requestId, httpLogger, metricsRoute } = require("./utils/observability");
 const { pool } = require("./database/db");
+const path = require('path');
+
 
 
 
@@ -161,6 +163,7 @@ app.use("/api/v1", v1Dashboard);
 app.use("/api/v1", v1GeoContainers);
 app.use("/api/v1", require("./routes/maritime.routes"));
 app.use("/api/v1", voyagesMapRouter);
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 app.get("/api/v1/live/containers", async (_req, res) => {
   res.set("Cache-Control", "no-store");   // ← impede 304
