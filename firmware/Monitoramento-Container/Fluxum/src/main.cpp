@@ -5,10 +5,10 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <esp_task_wdt.h>
-#include <WiFi.h>        // Biblioteca para Wi-Fi
-#include <HTTPClient.h>  // Biblioteca para requisições HTTP
+#include <WiFi.h>
+#include <HTTPClient.h>
 
-// --- FLAG DE DEPURACAO (FALSE para hardware real) ---
+// --- FLAG DE DEPURACAO ---
 #define FAKE_RFID_SCAN false 
 
 // --- CONFIGURAÇÕES DE REDE ---
@@ -69,47 +69,39 @@ String montarPacoteJson() {
   float umidade = bme.readHumidity();
   float pressao = bme.readPressure();
 
-  String jsonString = "{\n";
-  jsonString += "\t\"deviceId\":\"" + deviceId + "\",\n";
-  
-  if (gps.date.isValid() && gps.time.isValid()) {
-    String timestamp = String(gps.date.year()) + "-";
-    if (gps.date.month() < 10) timestamp += "0";
-    timestamp += String(gps.date.month()) + "-";
-    if (gps.date.day() < 10) timestamp += "0";
-    timestamp += String(gps.date.day()) + "T";
-    if (gps.time.hour() < 10) timestamp += "0";
-    timestamp += String(gps.time.hour()) + ":";
-    if (gps.time.minute() < 10) timestamp += "0";
-    timestamp += String(gps.time.minute()) + ":";
-    if (gps.time.second() < 10) timestamp += "0";
-    timestamp += String(gps.time.second()) + "Z";
-    jsonString += "\t\"timestamp\":\"" + timestamp + "\",\n";
-  } else {
-    jsonString += "\t\"timestamp_error\":\"Aguardando sincronia do GPS\",\n";
+  String jsonString = "{";
+  jsonString += "\"deviceId\":\"" + deviceId + "\"";
+
+  // Lógica Final do Timestamp: Só adiciona o campo se for válido (ano > 2000).
+  if (gps.date.isValid() && gps.time.isValid() && gps.date.year() > 2000) {
+    char timestamp[24];
+    sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02dZ", 
+            gps.date.year(), gps.date.month(), gps.date.day(), 
+            gps.time.hour(), gps.time.minute(), gps.time.second());
+    jsonString += ",\"timestamp\":\"" + String(timestamp) + "\"";
   }
-  
+
   if (tempC == 0 && umidade == 0 && pressao == 0) {
-    jsonString += "\t\"ambiente_error\":\"Falha na leitura do BME280\",\n";
+    jsonString += ",\"ambiente_error\":\"Falha na leitura do BME280\"";
   } else {
-    jsonString += "\t\"temperatura\":" + String(tempC) + ",\n";
-    jsonString += "\t\"umidade\":" + String(umidade) + ",\n";
-    jsonString += "\t\"pressao_hpa\":" + String(pressao / 100.0F) + ",\n";
+    jsonString += ",\"temperatura\":" + String(tempC);
+    jsonString += ",\"umidade\":" + String(umidade);
+    jsonString += ",\"pressao_hpa\":" + String(pressao / 100.0F);
   }
 
   if (gps.location.isValid()) {
-    jsonString += "\t\"latitude\":" + String(gps.location.lat(), 6) + ",\n";
-    jsonString += "\t\"longitude\":" + String(gps.location.lng(), 6);
+    jsonString += ",\"latitude\":" + String(gps.location.lat(), 6);
+    jsonString += ",\"longitude\":" + String(gps.location.lng(), 6);
   } else {
-    jsonString += "\t\"gps_error\":\"Localizacao invalida\"";
+    jsonString += ",\"gps_error\":\"Localizacao invalida\"";
   }
 
   if (ultimaTagRfidLida.length() > 0) {
-    jsonString += ",\n\t\"rfid_tag\":\"" + ultimaTagRfidLida + "\"";
+    jsonString += ",\"rfid_tag\":\"" + ultimaTagRfidLida + "\"";
     ultimaTagRfidLida = ""; 
   }
 
-  jsonString += "\n}";
+  jsonString += "}";
   return jsonString;
 }
 
@@ -127,10 +119,9 @@ void enviarDadosParaApi(String jsonPayload) {
     } else {
       Serial.printf("Erro na requisição HTTP: %s\n", http.errorToString(httpResponseCode).c_str());
     }
-
     http.end();
   } else {
-    Serial.println("ERRO: Sem conexão Wi-Fi. Dados seriam salvos na memória.");
+    Serial.println("ERRO: Sem conexão Wi-Fi.");
   }
 }
 
@@ -139,7 +130,7 @@ void setup_wifi() {
   Serial.println("\nConectando ao Wi-Fi...");
   WiFi.begin(ssid, password);
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) { // Tenta por 10 segundos
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
     delay(500);
     Serial.print(".");
     esp_task_wdt_reset();
@@ -150,16 +141,7 @@ void setup_wifi() {
     Serial.print("Endereço de IP do dispositivo: ");
     Serial.println(WiFi.localIP());
   } else {
-    Serial.println("\n--- FALHA AO CONECTAR NO WI-FI ---");
-    // Imprime o status do erro para sabermos o motivo
-    Serial.print("Status da Conexao: ");
-    Serial.println(WiFi.status()); 
-    Serial.println("WL_IDLE_STATUS: 0");
-    Serial.println("WL_NO_SSID_AVAIL: 1");
-    Serial.println("WL_CONNECT_FAILED: 4");
-    Serial.println("WL_CONNECTION_LOST: 5");
-    Serial.println("WL_DISCONNECTED: 6");
-    Serial.println("Verifique SSID, senha e sinal.");
+    Serial.println("\nFalha ao conectar no Wi-Fi.");
   }
 }
 
@@ -170,7 +152,9 @@ void setup_wifi() {
 void setup(void) {
   Serial.begin(115200);
   
-  setup_wifi(); // Conecta ao Wi-Fi primeiro
+  esp_task_wdt_add(NULL);
+  
+  setup_wifi(); 
   
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   SPI.begin();
@@ -181,19 +165,17 @@ void setup(void) {
     while (1); 
   }
   
-  esp_task_wdt_add(NULL);
-  
   delay(1000);
-  Serial.println("\n--- IOT Fluxum (v1.5 com Wi-Fi) iniciada ---");
+  Serial.println("\n--- IOT Fluxum (Hardware Real v1.7) iniciada ---");
   Serial.print("Device ID: ");
   Serial.println(getDeviceId());
-  Serial.println("-------------------------------------------");
+  Serial.println("----------------------------------------------");
 }
 
 void loop(void) {
   esp_task_wdt_reset();
   while (gpsSerial.available() > 0) { gps.encode(gpsSerial.read()); }
-
+  
   unsigned long currentMillis = millis();
 
   if (currentMillis - previousRfidMillis >= rfidInterval) {
@@ -205,7 +187,12 @@ void loop(void) {
   
   if (currentMillis - previousDataMillis >= dataInterval) {
     previousDataMillis = currentMillis;
+    
     String pacoteDeDados = montarPacoteJson();
+    // Apenas para depuração, podemos imprimir o pacote antes de enviar
+    Serial.println("--- Gerando Pacote de Dados ---");
+    Serial.println(pacoteDeDados); 
+    
     enviarDadosParaApi(pacoteDeDados);
   }
 }
