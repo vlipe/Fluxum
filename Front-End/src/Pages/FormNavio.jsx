@@ -17,6 +17,7 @@ const FormNavio = () => {
     ativo: true,
     bandeira: "",
     status: "",
+    statusfuturo: "",
     origem: "",
     destino: "",
     saida: "",
@@ -43,6 +44,7 @@ const FormNavio = () => {
           imo: formData.idCod,
           flag: formData.bandeira,
           status: formData.status,
+          statusfuturo: formData.statusfuturo || null,
           from_port: formData.origem,
           to_port: formData.destino,
           eta_date: formData.eta,
@@ -93,6 +95,22 @@ const FormNavio = () => {
               <option value="Manutenção">Manutenção</option>
             </select>
           </div>
+
+          <div className="mb-8">
+  <label className="block text-sm text-azulEscuro mb-2">Próximo status (status futuro)</label>
+  <select
+    name="statusfuturo"
+    value={formData.statusfuturo}
+    onChange={handleChange}
+    className="h-12 w-full rounded-xl bg-[#F4F7FB] px-4 text-[13px] text-roxo focus:outline-none focus:ring-2 focus:ring-violeta"
+  >
+    <option value="">Selecione</option>
+    <option value="Em viagem">Em viagem</option>
+    <option value="Ancorado">Ancorado</option>
+    <option value="Manutenção">Manutenção</option>
+  </select>
+</div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div>

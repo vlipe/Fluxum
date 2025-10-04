@@ -42,7 +42,7 @@ const Navios = () => {
       nome: r.name || "",
       cod: r.imo || "",
       data: r.eta_date || null,
-      status: [r.status || ""].filter(Boolean),
+      status: [r.status || "", r.statusfuturo || ""].filter(Boolean),
       de: r.from_port || "—",
       para: r.to_port || "—",
       id: r.ship_id,
@@ -97,7 +97,7 @@ const Navios = () => {
         <div className="bg-white rounded-xl flex flex-col px-4 md:px-8 py-6">
           <div className="flex justify-between items-center">
             
-            <h2 className="text-xl font-GT mb-8">Gerenciamento de Navios</h2>
+            <h2 className="text-xl font-GT mb-8 font-bold">Gerenciamento de Navios</h2>
             <button type="button" onClick={() => navigate("/FormNavio")} className="bg-[#ECF2F9] mb-6 text-azulEscuro text-[12px] font-medium px-6 py-2 rounded-full hover:bg-white duration-300 cursor-pointer">
             Adicionar Navio
           </button>
@@ -130,9 +130,9 @@ const Navios = () => {
                     className={`${n.inativo ? "bg-[#F8EAEA]" : "bg-[#ECF2F9]"} rounded-3xl p-6 shadow-sm flex justify-between items-center cursor-pointer`}
                     onClick={() => navigate(`/DetalhesNavio?id=${n.id}`)}
                   >
-                    <div>
+                    <div className="ml-4">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-[22px] text-azulEscuro font-GT">{n.nome}</h3>
+                        <h3 className="text-[22px] text-azulEscuro font-GT font-bold">{n.nome}</h3>
                         {n.inativo && <span className="px-2 py-0.5 rounded-full text-[10px] bg-[#FEE2E2] text-[#B91C1C]">Inativo</span>}
                       </div>
                       <p className="text-[11px] text-gray-500">Cód: {n.cod || "—"}</p>
@@ -149,17 +149,19 @@ const Navios = () => {
                       </div>
                       <p className="text-sm">
                         <span className="font-bold text-[#494594]">De:</span>{" "}
-                        <span className={portoColors[n.de] || "text-gray-600"}>{n.de}</span>
+                        <span className={portoColors[n.de] || "text-[#494594]"}>{n.de}</span>
                       </p>
                       <p className="text-sm">
                         <span className="font-bold text-[#494594]">Para:</span>{" "}
-                        <span className={portoColors[n.para] || "text-gray-600"}>{n.para}</span>
+                        <span className={portoColors[n.para] || "text-[#494594]"}>{n.para}</span>
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right mr-4">
+                      <div className="text-md mb-9">
                       <p className="text-xl font-medium text-roxo">{mes}</p>
-                      <p className="text-[42px] font-GT text-azulEscuro">{dia}</p>
-                      <p className="text-xs text-gray-400 mt-2">ETA aproximada</p>
+                      <p className="text-[42px] font-bold text-[#191B40]">{dia}</p>
+                      </div>
+                      <p className="text-xs font-medium text-[#191B40]  mt-2">ETA aproximada</p>
                     </div>
                   </div>
                 );

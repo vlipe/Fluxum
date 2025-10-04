@@ -4,13 +4,13 @@ const router = express.Router();
 const { pool } = require('../database/db');
 const { authRequired } = require('../middleware/auth');
 
-// LISTAR
+
 router.get('/ships', authRequired, async (req, res) => {
   try {
-    const account_id = req.account_id; // BIGINT
+    const account_id = req.account_id; 
     const { rows } = await pool.query(
       `SELECT
-         ship_id, account_id, name, imo, flag, status,
+         ship_id, account_id, name, imo, flag, status,statusfuturo,
          from_port, to_port, eta_date, departure_at,
          capacity, active, created_at
        FROM ships
@@ -29,9 +29,9 @@ router.get('/ships', authRequired, async (req, res) => {
 // CRIAR
 router.post('/ships', authRequired, async (req, res) => {
   try {
-    const account_id = req.account_id; // BIGINT
+    const account_id = req.account_id; 
     const {
-      imo, name, flag, status, from_port,
+      imo, name, flag, status,statusfuturo, from_port,
       to_port, eta_date, departure_at, active
     } = req.body || {};
 
@@ -39,13 +39,13 @@ router.post('/ships', authRequired, async (req, res) => {
 
     const { rows } = await pool.query(
       `INSERT INTO ships (
-         account_id, imo, name, flag, status, from_port, to_port,
+         account_id, imo, name, flag, status,statusfuturo, from_port, to_port,
          eta_date, departure_at, active
        )
        VALUES ($1, NULLIF($2,''), $3, NULLIF($4,''), NULLIF($5,''), NULLIF($6,''), NULLIF($7,''),
-               $8::date, $9::timestamptz, $10)
+               NULLIF($8,''),$9::date, $10::timestamptz, $11)
        RETURNING
-         ship_id, account_id, name, imo, flag, status,
+         ship_id, account_id, name, imo, flag, status,statusfuturo,
          from_port, to_port, eta_date, departure_at,
          capacity, active, created_at`,
       [
@@ -54,6 +54,7 @@ router.post('/ships', authRequired, async (req, res) => {
         String(name).trim(),
         flag ?? null,
         status ?? null,
+        statusfuturo ?? null,
         from_port ?? null,
         to_port ?? null,
         eta_date || null,
@@ -83,7 +84,7 @@ router.get('/ships/:id', authRequired, async (req, res) => {
 
     const { rows } = await pool.query(
       `SELECT
-  ship_id, account_id, name, imo, flag, status,
+  ship_id, account_id, name, imo, flag, status,statusfuturo,
   from_port, to_port, eta_date, departure_at,
   capacity, active, created_at, updated_at
 FROM ships
@@ -109,7 +110,7 @@ router.put('/ships/:id', authRequired, async (req, res) => {
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'id inválido (inteiro esperado)' });
 
     const {
-      name, imo, flag, status, from_port, to_port,
+      name, imo, flag, status,statusfuturo, from_port, to_port,
       eta_date,       
       departure_at,   
       capacity,
@@ -124,7 +125,8 @@ router.put('/ships/:id', authRequired, async (req, res) => {
       name.trim(),                 
       imo ?? null,                
       flag ?? null,               
-      status ?? null,             
+      status ?? null, 
+      statusfuturo ?? null,            
       from_port ?? null,          
       to_port ?? null,             
       eta_date ?? null,           
@@ -141,15 +143,16 @@ router.put('/ships/:id', authRequired, async (req, res) => {
               imo          = NULLIF($2,''),
               flag         = NULLIF($3,''),
               status       = NULLIF($4,''),
-              from_port    = NULLIF($5,''),
-              to_port      = NULLIF($6,''),
-              eta_date     = NULLIF($7,'')::date,
-              departure_at = NULLIF($8,'')::timestamptz,
-              capacity     = $9,
-              active       = COALESCE($10, active)
-        WHERE account_id = $11 AND ship_id = $12
+              statusfuturo = NULLIF($5,''),
+              from_port    = NULLIF($6,''),
+              to_port      = NULLIF($7,''),
+              eta_date     = NULLIF($8,'')::date,
+              departure_at = NULLIF($9,'')::timestamptz,
+              capacity     = $10,
+              active       = COALESCE($11, active)
+        WHERE account_id = $12 AND ship_id = $13
        RETURNING
-  ship_id, account_id, name, imo, flag, status,
+  ship_id, account_id, name, imo, flag, status,statusfuturo,
   from_port, to_port, eta_date, departure_at,
   capacity, active, created_at, updated_at
 `,
