@@ -61,7 +61,7 @@ const DetalheNavio = () => {
       <Sidebar2 />
 
       <div className="flex-1 p-6 lg:p-10">
-        <h1 className="text-center text-xl lg:text-2xl font-GT text-azulEscuro mb-6">
+        <h1 className="text-center text-xl lg:text-2xl font-GT font-bold text-azulEscuro mb-6">
           Detalhe do Navio
         </h1>
 
@@ -69,7 +69,7 @@ const DetalheNavio = () => {
           <div className="flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-GT text-azulEscuro">
+                <h2 className="text-2xl font-GT font-bold text-azulEscuro">
                   {ship.name}
                 </h2>
                 <img src={Caneta} onClick={() => navigate(`/EditarNavio?id=${ship.ship_id}`)} alt="editar" className="w-5 h-5 cursor-pointer" />
@@ -137,21 +137,21 @@ const DetalheNavio = () => {
                 <table className="w-full text-sm bg-deletar rounded-3xl pb-8">
                   <thead>
                     <tr className="text-left text-azulEscuro">
-                      <th className="px-16 py-2 bg-white">ID</th>
-                      <th className="px-10 py-2 bg-white">Status</th>
-                      <th className="px-4 py-2 bg-white">Última temp.</th>
+                      <th className="px-16 py-3">ID</th>
+                      <th className="px-10 py-3">Status</th>
+                      <th className="px-4 py-3">Última temp.</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-gray-200">
+                    <tr className>
                       <td className="px-16 py-3">12345</td>
                       <td className="px-10 py-3 text-[#3BB61F]">Ativo</td>
-                      <td className="px-4 py-3">32,2° C</td>
+                      <td className="px-10 py-3">32,2° C</td>
                     </tr>
                     <tr>
                       <td className="px-16 py-3">67890</td>
                       <td className="px-10 py-3 text-[#F21D4E]">Inativo</td>
-                      <td className="px-4 py-3">15,8° C</td>
+                      <td className="px-10 py-3">15,8° C</td>
                     </tr>
                   </tbody>
                 </table>
