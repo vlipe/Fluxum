@@ -1,3 +1,10 @@
+require('dotenv').config();
+
+console.log('🔧 Variáveis carregadas:');
+console.log('  PORT:', process.env.PORT);
+console.log('  DATABASE_URL:', process.env.DATABASE_URL ? '✅' : '❌');
+console.log('  JWT_ACCESS_SECRET:', process.env.JWT_ACCESS_SECRET ? '✅' : '❌');
+
 const express = require("express");
 const dotenv = require("dotenv");
 const helmet = require("helmet");
@@ -8,11 +15,6 @@ const slowDown = require("express-slow-down");
 const { logger, requestId, httpLogger, metricsRoute } = require("./utils/observability");
 const { pool } = require("./database/db");
 const path = require('path');
-
-
-
-
-dotenv.config();
 
 const authRoutes = require("./routes/auth.routes");
 const usersRoutes = require("./routes/users.routes");
