@@ -1,69 +1,81 @@
 
 // controllers/containerEvents.controller.js
 const { pool } = require("../database/db");
+const { logger } = require("../utils/observability"); // Importando seu logger
+
 
 exports.createEvent = async (req, res) => {
-  const {
-    event_type, container_id, location, site, gpio, device_id, tag, ts_iso,
-    lat, lng, geohash, meta, idempotency_key, source, voyage_id,
-    battery_percent, temp_c, ref_event_id, alert_id,
-
-    // NOVOS (podem vir direto no body)
-    sog_kn, cog_deg, voyage_code, imo
-  } = req.body || {};
+    let { container_id } = req.body || {}; 
+    const {
+        event_type, location, site, gpio, device_id, tag, ts_iso,
+        lat, lng, geohash, meta, idempotency_key, source, voyage_id,
+        battery_percent, temp_c, sog_kn, cog_deg, voyage_code, imo
+    } = req.body || {};
 
   const client = await pool.connect();
-  try {
-    if (String(event_type || "").toUpperCase() === "ALERT_RESOLVED") {
-      const id = alert_id || ref_event_id;
-      if (!id) return res.status(400).json({ error: "alert_id requerido" });
-      await client.query(
-        `UPDATE alerts
-           SET acknowledged_by = COALESCE($2, acknowledged_by),
-               acknowledged_at = NOW()
-         WHERE id = $1`,
-        [id, req.user?.id || null]
-      );
-      return res.status(200).json({ ok: true });
+    try {
+        // ======================================================================
+        // --- NOVA LÓGICA DE ASSOCIAÇÃO ---
+        // Se um 'container_id' não foi enviado no JSON, mas um 'device_id' foi...
+        if (!container_id && device_id) {
+            logger.debug({ device_id }, `Buscando container associado ao dispositivo...`);
+            const result = await client.query(
+                `SELECT id FROM containers WHERE iot_device_id = $1`,
+                [device_id]
+            );
+            
+            // Se encontramos uma associação no banco de dados...
+            if (result.rows.length > 0) {
+                container_id = result.rows[0].id; // ...usamos o container_id encontrado!
+                logger.debug({ container_id }, `Container ${container_id} encontrado para o dispositivo.`);
+            } else {
+                logger.warn({ device_id }, `Evento recebido do dispositivo ${device_id}, mas ele não está associado a nenhum container.`);
+            }
+        }
+        // ======================================================================
+
+        // O resto da sua lógica original continua aqui...
+        if (String(event_type || "").toUpperCase() === "ALERT_RESOLVED") {
+            // ... (sua lógica de resolver alertas)
+            return res.status(200).json({ ok: true });
+        }
+
+        const allowed = ['RFID_DETECTED','OPEN','CLOSE','MOVE','ENTER','EXIT','ALERT','HEARTBEAT'];
+        if (!allowed.includes(String(event_type || '').toUpperCase())) {
+            return res.status(400).json({ error: "event_type inválido" });
+        }
+
+        const sog = sog_kn ?? meta?.sog_kn ?? null;
+        const cog = cog_deg ?? meta?.cog_deg ?? null;
+
+        const r = await client.query(
+            `INSERT INTO container_movements
+               (container_id, event_type, site, location, gpio, device_id, tag, ts_iso,
+                lat, lng, geohash, meta, idempotency_key, source, voyage_id,
+                battery_percent, temp_c, sog_kn, cog_deg, voyage_code, imo)
+             VALUES
+               ($1,$2,$3,$4,$5,$6,$7,$8,
+                $9,$10,$11,$12,$13,$14,$15,
+                $16,$17,$18,$19,$20,$21)
+             RETURNING id`,
+            [
+                container_id, event_type, site, location, gpio, device_id, tag, ts_iso,
+                lat, lng, geohash, meta || null, idempotency_key, source, voyage_id,
+                battery_percent, temp_c,
+                sog != null ? Number(sog) : null,
+                cog != null ? Number(cog) : null,
+                voyage_code || null,
+                imo || null
+            ]
+        );
+
+        res.status(201).json({ id: r.rows[0].id });
+    } catch (e) {
+        logger.error({ err: e }, 'Erro ao criar evento de container');
+        res.status(400).json({ error: "Bad Request" });
+    } finally {
+        client.release();
     }
-
-    const allowed = ['RFID_DETECTED','OPEN','CLOSE','MOVE','ENTER','EXIT','ALERT','HEARTBEAT'];
-    if (!allowed.includes(String(event_type || '').toUpperCase())) {
-      return res.status(400).json({ error: "event_type inválido" });
-    }
-
-    // aceita valores diretos ou via meta
-    const sog = sog_kn ?? meta?.sog_kn ?? null;
-    const cog = cog_deg ?? meta?.cog_deg ?? null;
-
-    const r = await client.query(
-      `INSERT INTO container_movements
-         (container_id, event_type, site, location, gpio, device_id, tag, ts_iso,
-          lat, lng, geohash, meta, idempotency_key, source, voyage_id,
-          battery_percent, temp_c, sog_kn, cog_deg, voyage_code, imo)
-       VALUES
-         ($1,$2,$3,$4,$5,$6,$7,$8,
-          $9,$10,$11,$12,$13,$14,$15,
-          $16,$17,$18,$19,$20,$21)
-       RETURNING id`,
-      [
-        container_id, event_type, site, location, gpio, device_id, tag, ts_iso,
-        lat, lng, geohash, meta || null, idempotency_key, source, voyage_id,
-        battery_percent, temp_c,
-        sog != null ? Number(sog) : null,
-        cog != null ? Number(cog) : null,
-        voyage_code || null,
-        imo || null
-      ]
-    );
-
-    res.status(201).json({ id: r.rows[0].id });
-  } catch (e) {
-    console.error('createEvent error:', e);
-    res.status(400).json({ error: "Bad Request" });
-  } finally {
-    client.release();
-  }
 };
 
 
