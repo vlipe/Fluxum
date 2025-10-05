@@ -116,7 +116,7 @@ function handleToggleAtivo() {
   return (
     <div className="min-h-screen w-full bg-deletar flex flex-row">
       <Sidebar2 />
-      <div className="flex flex-col items-center justify-center w-full px-6">
+      <div className="flex flex-col items-center justify-center w-full px-6 max-[760px]:mt-20">
         <h2 className="text-2xl font-GT text-azulEscuro mb-6 text-center">Editar Navio</h2>
         <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-2xl">
           <div className="mb-8">

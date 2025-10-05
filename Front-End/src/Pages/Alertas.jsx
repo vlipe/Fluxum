@@ -162,7 +162,7 @@ const carregar = useCallback(async () => {
     <div className="min-h-screen w-full bg-deletar flex flex-col md:flex-row relative">
       <Sidebar2 />
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
-        <div className=" flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+        <div className=" flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4 max-[760px]:mt-14">
           <p></p>
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <div className="relative flex-1 max-w-full sm:max-w-4xl">
@@ -181,7 +181,7 @@ const carregar = useCallback(async () => {
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-xl font-bold font-GT text-azulEscuro">Alertas</h1>
           </div>
-          <div className="bg-[#F2F6FB] flex overflow-x-auto scrollbar-hide rounded-full h-12 w-1/2 mb-6 gap-1">
+          <div className="bg-[#F2F6FB] flex overflow-x-auto scrollbar-hide rounded-full h-12 w-full mb-6 gap-1">
             {abas.map((aba) => {
               const ativa = abaSelecionada === aba;
               return (

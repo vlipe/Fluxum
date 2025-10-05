@@ -19,14 +19,14 @@ import Navios from "./Pages/Navios.jsx";
 import FormNavio from "./Pages/FormNavio.jsx";
 import DetalhesNavio from "./Pages/DetalhesNavio.jsx";
 import EditarNavio from "./Pages/EditarNavio.jsx";
-import TransferirConteiner from "./Pages/TransferirConteiner.jsx";
+import FormConteiner from "./Pages/FormConteiner.jsx";
+import DetalhesConteiner from "./Pages/DetalhesConteiner.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/Login", element: <Login /> },
   { path: "/reset-password", element: <ResetPassword /> },
   { path: "/oauth/success", element: <OAuthSuccess /> },
-  { path: "/TranferirConteiner", element: <TransferirConteiner /> },
   {
     element: <PrivateRoute />,
     children: [
@@ -41,6 +41,8 @@ const router = createBrowserRouter([
       { path: "/FormNavio", element: <FormNavio /> },
       { path: "/DetalhesNavio", element: <DetalhesNavio /> },
       { path: "/EditarNavio", element: <EditarNavio /> },
+      { path: "/FormConteiner", element: <FormConteiner /> },
+      { path: "/DetalhesConteiner", element: <DetalhesConteiner /> },
     ],
   },
   { path: "*", element: <Navigate to="/" replace /> },

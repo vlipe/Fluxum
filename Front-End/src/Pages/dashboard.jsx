@@ -205,7 +205,7 @@ const Dashboard = () => {
   return (
     <div className="flex min-h-screen w-full bg-[#ECF2F9]">
       <Sidebar2 />
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-[760px]:mt-8">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-[760px]:mt-16">
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <p className="text-xl text-azulEscuro">

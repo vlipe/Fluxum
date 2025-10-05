@@ -770,11 +770,11 @@ export default function Mapa() {
     <div className="min-h-screen w-full bg-deletar flex flex-col md:flex-row relative">
       <Sidebar2 />
       <div className="flex flex-col w-full md:w-[96%] mt-8 mb-8 px-4 md:px-6">
-<div className="flex flex-col sm:flex-row items-center gap-4 mb-6">
+<div className="flex flex-col sm:flex-row items-center gap-4 mb-6 max-[760px]:mt-14">
   <div className="flex gap-2 w-full flex-wrap justify-center">
-    <input type="text" placeholder="Filtrar por contêiner/viagem/IMO" value={q} onChange={(e) => setQ(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none flex-grow min-w-[200px]" />
+    <input type="text" placeholder="Filtrar por contêiner, viagem ou IMO" value={q} onChange={(e) => setQ(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none flex-grow min-w-[200px]" />
     <input type="text" placeholder="Código da viagem" value={voyageCode} onChange={(e) => setVoyageCode(e.target.value)} className="h-12 rounded-3xl bg-white px-4 text-sm focus:outline-none w-72" />
-    <select value={baseStyle} onChange={(e) => setBaseStyle(e.target.value)} className="h-12 rounded-3xl text-azulEscuro bg-white px-6 text-sm focus:outline-none cursor-pointer" title="Tipo de mapa">
+    <select value={baseStyle} onChange={(e) => setBaseStyle(e.target.value)} className="h-12 rounded-3xl text-azulEscuro bg-white px-10 text-sm focus:outline-none cursor-pointer" title="Tipo de mapa">
       <option value="streets">Ruas</option>
       <option value="satellite">Satélite</option>
     </select>

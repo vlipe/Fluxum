@@ -28,7 +28,6 @@ import Home from "../assets/assetsDashboard/home.svg";
 const API = import.meta.env.VITE_API_URL || "";
 const toAbsolute = (u) => (!u ? u : (u.startsWith("http") ? u : API.replace(/\/$/, "") + u));
 
-
 const Sidebar2 = () => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
@@ -41,14 +40,11 @@ const Sidebar2 = () => {
     navio: false,
   });
 
-
   const [avatar, setAvatar] = useState(FotoDefault);
-
   
   useEffect(() => {
     let live = true;
 
-    // carrega avatar atual
     apiFetch("/api/users/me", { auth: true })
       .then((me) => {
         if (!live) return;
@@ -56,7 +52,6 @@ const Sidebar2 = () => {
       })
       .catch(() => {});
 
-    // escuta atualização vinda da tela de Perfil
     const onUpd = (e) => {
       const url = e.detail?.url;
       setAvatar(url ? toAbsolute(url) : FotoDefault);
@@ -73,141 +68,179 @@ const Sidebar2 = () => {
     <div
       className="
         bg-white rounded-[35px] flex justify-between
-        my-6 ml-4 mb-12 sm:mb-12
-        w-1/12 h-full flex-col
-        max-[760px]:fixed max-[760px]:top-0 max-[760px]:left-0 max-[760px]:w-11/12 max-[760px]:h-16 max-[760px]:flex-row max-[760px]:items-center max-[760px]:px-4 max-[760px]:z-50 max-[760px]:shadow-sm
+        my-6 ml-4 mb-12
+        w-1/12 max-h-screen flex-col
+        max-[760px]:fixed max-[760px]:top-0 max-[760px]:left-0 max-[760px]:right-0 
+        max-[760px]:w-full max-[760px]:h-16 max-[760px]:flex-row 
+        max-[760px]:items-center max-[760px]:px-4 max-[760px]:z-50 
+        max-[760px]:rounded-none max-[760px]:my-0 max-[760px]:ml-0 max-[760px]:mb-0
       "
     >
+
       <div
         className="
           w-full flex flex-col gap-y-4 items-center
           mt-2
-          max-[760px]:flex-row max-[760px]:justify-start max-[760px]:gap-x-6 max-[760px]:mt-0
+          max-[760px]:flex-row max-[760px]:justify-start max-[760px]:gap-x-4 
+          max-[760px]:mt-0 max-[760px]:w-auto
         "
       >
-        <img src={Logo} alt="Logo" className="mt-4 mb-4 w-16 max-[760px]:mt-0 max-[760px]:mb-0 max-[760px]:w-8" />
+        <img 
+          src={Logo} 
+          alt="Logo" 
+          className="mt-4 mb-4 w-16 max-[760px]:mt-0 max-[760px]:mb-0 max-[760px]:w-8 max-[760px]:mr-2" 
+        />
 
-        <Link
-          to="/Dashboard"
-          component={RouterLink}
-          underline="none"
-          onMouseEnter={() => setHovered({ ...hovered, dashboard: true })}
-          onMouseLeave={() => setHovered({ ...hovered, dashboard: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 max-[760px]:rounded-[10px] ${
-            isActive("/Dashboard")
-              ? "bg-violeta cursor-default"
-              : "hover:bg-violeta/70 cursor-pointer duration-300"
-          }`}
+        <div
+          className="
+            flex flex-col gap-y-4 items-center w-full
+            max-[760px]:flex-row max-[760px]:justify-center max-[760px]:gap-x-3
+            max-[760px]:w-auto max-[760px]:flex-1
+          "
         >
-          <img
-            src={isActive("/Dashboard") || hovered.dashboard ? Caixa2 : Caixa}
-            className="mx-auto"
-            alt="Dashboard"
-          />
-        </Link>
+          <Link
+            to="/Dashboard"
+            component={RouterLink}
+            underline="none"
+            onMouseEnter={() => setHovered({ ...hovered, dashboard: true })}
+            onMouseLeave={() => setHovered({ ...hovered, dashboard: false })}
+            className={`
+              py-3 flex w-16 mx-auto rounded-[18px] justify-center items-center
+              max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+              ${isActive("/Dashboard")
+                ? "bg-violeta cursor-default"
+                : "hover:bg-violeta/70 cursor-pointer duration-300"
+              }
+            `}
+          >
+            <img
+              src={isActive("/Dashboard") || hovered.dashboard ? Caixa2 : Caixa}
+              className="mx-auto max-[760px]:w-5 max-[760px]:h-5"
+              alt="Dashboard"
+            />
+          </Link>
 
-        <Link
-          to="/Relatorios"
-          component={RouterLink}
-          underline="none"
-          onMouseEnter={() => setHovered({ ...hovered, relatorios: true })}
-          onMouseLeave={() => setHovered({ ...hovered, relatorios: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
-            isActive("/Relatorios")
-              ? "bg-violeta cursor-default"
-              : "hover:bg-violeta/70 cursor-pointer duration-700"
-          }`}
-        >
-          <img
-            src={isActive("/Relatorios") || hovered.relatorios ? Grafico2 : Grafico}
-            className="mx-auto"
-            alt="Relatórios"
-          />
-        </Link>
+          <Link
+            to="/Relatorios"
+            component={RouterLink}
+            underline="none"
+            onMouseEnter={() => setHovered({ ...hovered, relatorios: true })}
+            onMouseLeave={() => setHovered({ ...hovered, relatorios: false })}
+            className={`
+              py-3 flex w-16 mx-auto rounded-[18px] justify-center items-center
+              max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+              ${isActive("/Relatorios")
+                ? "bg-violeta cursor-default"
+                : "hover:bg-violeta/70 cursor-pointer duration-300"
+              }
+            `}
+          >
+            <img
+              src={isActive("/Relatorios") || hovered.relatorios ? Grafico2 : Grafico}
+              className="mx-auto max-[760px]:w-5 max-[760px]:h-5"
+              alt="Relatórios"
+            />
+          </Link>
 
-        <Link
-          to="/Mapa"
-          component={RouterLink}
-          underline="none"
-          onMouseEnter={() => setHovered({ ...hovered, mapa: true })}
-          onMouseLeave={() => setHovered({ ...hovered, mapa: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
-            isActive("/Mapa")
-              ? "bg-violeta cursor-default"
-              : "hover:bg-violeta/70 cursor-pointer duration-700"
-          }`}
-        >
-          <img
-            src={isActive("/Mapa") || hovered.mapa ? Mapa2 : Mapa}
-            className="mx-auto"
-            alt="Mapa"
-          />
-        </Link>
+          <Link
+            to="/Mapa"
+            component={RouterLink}
+            underline="none"
+            onMouseEnter={() => setHovered({ ...hovered, mapa: true })}
+            onMouseLeave={() => setHovered({ ...hovered, mapa: false })}
+            className={`
+              py-3 flex w-16 mx-auto rounded-[18px] justify-center items-center
+              max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+              ${isActive("/Mapa")
+                ? "bg-violeta cursor-default"
+                : "hover:bg-violeta/70 cursor-pointer duration-300"
+              }
+            `}
+          >
+            <img
+              src={isActive("/Mapa") || hovered.mapa ? Mapa2 : Mapa}
+              className="mx-auto max-[760px]:w-5 max-[760px]:h-5"
+              alt="Mapa"
+            />
+          </Link>
 
-        <Link
-          to="/Alertas"
-          component={RouterLink}
-          underline="none"
-          onMouseEnter={() => setHovered({ ...hovered, alertas: true })}
-          onMouseLeave={() => setHovered({ ...hovered, alertas: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
-            isActive("/Alertas")
-              ? "bg-violeta cursor-default"
-              : "hover:bg-violeta/70 cursor-pointer duration-700"
-          }`}
-        >
-          <img
-            src={isActive("/Alertas") || hovered.alertas ? Alerta : Alerta2}
-            className="mx-auto"
-            alt="Alertas"
-          />
-        </Link>
+          <Link
+            to="/Alertas"
+            component={RouterLink}
+            underline="none"
+            onMouseEnter={() => setHovered({ ...hovered, alertas: true })}
+            onMouseLeave={() => setHovered({ ...hovered, alertas: false })}
+            className={`
+              py-3 flex w-16 mx-auto rounded-[18px] justify-center items-center
+              max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+              ${isActive("/Alertas")
+                ? "bg-violeta cursor-default"
+                : "hover:bg-violeta/70 cursor-pointer duration-300"
+              }
+            `}
+          >
+            <img
+              src={isActive("/Alertas") || hovered.alertas ? Alerta : Alerta2}
+              className="mx-auto max-[760px]:w-5 max-[760px]:h-5"
+              alt="Alertas"
+            />
+          </Link>
 
-        <Link
-          to="/Navios"
-          component={RouterLink}
-          underline="none"
-          onMouseEnter={() => setHovered({ ...hovered, navio: true })}
-          onMouseLeave={() => setHovered({ ...hovered, navio: false })}
-          className={`py-3 flex w-16 mx-auto rounded-[18px] sm:max-w-14 sm:max-h-14 max-[760px]:w-12 max-[760px]:h-12 ${
-            isActive("/Navios")
-              ? "bg-violeta cursor-default"
-              : "hover:bg-violeta/70 cursor-pointer duration-700"
-          }`}
-        >
-          <img
-            src={isActive("/Navios") || hovered.navio ? Navio : Navio2}
-            className="mx-auto"
-            alt="Navios"
-          />
-        </Link>
+          <Link
+            to="/Navios"
+            component={RouterLink}
+            underline="none"
+            onMouseEnter={() => setHovered({ ...hovered, navio: true })}
+            onMouseLeave={() => setHovered({ ...hovered, navio: false })}
+            className={`
+              py-3 flex w-16 mx-auto rounded-[18px] justify-center items-center
+              max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+              ${isActive("/Navios")
+                ? "bg-violeta cursor-default"
+                : "hover:bg-violeta/70 cursor-pointer duration-300"
+              }
+            `}
+          >
+            <img
+              src={isActive("/Navios") || hovered.navio ? Navio : Navio2}
+              className="mx-auto max-[760px]:w-5 max-[760px]:h-5"
+              alt="Navios"
+            />
+          </Link>
+        </div>
       </div>
 
       <div
         className="
           w-full flex flex-col items-center gap-4 mb-6
-          max-[760px]:flex-row max-[760px]:mb-0 max-[760px]:gap-x-6 max-[760px]:justify-end
+          max-[760px]:flex-row max-[760px]:mb-0 max-[760px]:gap-x-3 
+          max-[760px]:justify-end max-[760px]:w-auto
         "
       >
         <Link
           to="/Home"
           component={RouterLink}
           underline="none"
-          className={`py-8 flex w-16 mx-auto rounded-[18px] sm:max-w-8 max-[760px]:w-12 max-[760px]:h-12 ${
-            isActive("/Home") ? "bg-violeta cursor-default" : "cursor-pointer"
-          }`}
+          className={`
+            py-8 flex w-16 mx-auto rounded-[18px] justify-center items-center
+            max-[760px]:w-10 max-[760px]:h-10 max-[760px]:rounded-[10px] max-[760px]:py-2
+            ${isActive("/Home") ? "bg-violeta cursor-default" : "cursor-pointer"}
+          `}
         >
-          <img src={Home} className="mx-auto" alt="Home" />
-        </Link>
-
-               <Link to="/Perfil" component={RouterLink} underline="none">
-          <img
-            src={avatar}
-            alt="Foto de Perfil"
-            className="w-11 h-11 rounded-full object-cover"
+          <img 
+            src={Home} 
+            className="mx-auto max-[760px]:w-5 max-[760px]:h-5" 
+            alt="Home" 
           />
         </Link>
 
+        <Link to="/Perfil" component={RouterLink} underline="none">
+          <img
+            src={avatar}
+            alt="Foto de Perfil"
+            className="w-11 h-11 rounded-full object-cover max-[760px]:w-8 max-[760px]:h-8"
+          />
+        </Link>
       </div>
     </div>
   );
