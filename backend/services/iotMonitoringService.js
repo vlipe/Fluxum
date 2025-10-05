@@ -3,9 +3,12 @@ const { logger } = require('../utils/observability');
 const { pool } = require('../database/db');
 
 const processTelemetry = async (data) => {
-    logger.info({ telemetryData: data }, " Pacote de telemetria recebido.");
+    logger.info({ telemetryData: data }, "Pacote de telemetria recebido.");
 
     const { deviceId, timestamp, temperatura, umidade, pressao_hpa, latitude, longitude, rfid_tag, gps_error, ambiente_error } = data;
+    
+    // Lógica segura de Timestamp: Se a IoT não enviar, usamos a hora do servidor.
+    const ts_iso_final = timestamp || new Date().toISOString();
 
     try {
         // ETAPA 1: Encontrar o ID do container associado ao deviceId
@@ -26,25 +29,23 @@ const processTelemetry = async (data) => {
         // ETAPA 2: Inserir os dados na tabela de movimentos
         const event_type = rfid_tag ? 'RFID_DETECTED' : 'HEARTBEAT';
         
-        // CORREÇÃO: Adicionado o placeholder $10
         const query = `
             INSERT INTO container_movements 
-            (device_id, ts_iso, temp_c, humidity, pressure_hpa, lat, lng, tag, event_type, source, container_id)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'iot-device', $10) 
+            (container_id, device_id, ts_iso, temp_c, humidity, pressure_hpa, lat, lng, tag, event_type, source)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'iot-device') 
         `;
         
-        // CORREÇÃO: A ordem dos valores agora corresponde à ordem das colunas
         const values = [
+            containerId,
             deviceId,
-            timestamp || new Date().toISOString(),
+            ts_iso_final, // <-- Usando a variável segura
             ambiente_error ? null : temperatura,
             ambiente_error ? null : umidade,
             ambiente_error ? null : pressao_hpa,
             gps_error ? null : latitude,
             gps_error ? null : longitude,
             rfid_tag || null,
-            event_type,
-            containerId // O valor para o placeholder $10
+            event_type
         ];
 
         logger.debug("Executando query de inserção...");
