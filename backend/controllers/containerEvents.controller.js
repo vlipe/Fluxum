@@ -2,48 +2,63 @@
 const { pool } = require("../database/db");
 const { logger } = require("../utils/observability");
 const { v4: uuidv4 } = require('uuid');
+const transferService = require('../services/transferService');
 
-// --- FUNÇÃO PARA CRIAR UM EVENTO (RECEBIDO DA IOT) ---
+// --- FUNÇÃO PARA CRIAR UM EVENTO (AGORA MAIS INTELIGENTE) ---
 exports.createEvent = async (req, res) => {
-    // Usamos 'let' para que container_id possa ser modificado
     let { container_id } = req.body || {}; 
     const {
         event_type, location, site, gpio, device_id, tag, ts_iso,
         lat, lng, geohash, meta, idempotency_key, source, voyage_id,
-        battery_percent, temp_c, humidity, pressure_hpa, // Adicionando novos campos da IoT
+        battery_percent, temp_c, humidity, pressure_hpa,
         sog_kn, cog_deg, voyage_code, imo
     } = req.body || {};
 
     const client = await pool.connect();
     try {
-        // Inicia uma transação segura
         await client.query('BEGIN');
 
         // ======================================================================
-        // --- LÓGICA DE ASSOCIAÇÃO ---
-        // Se a IoT enviou 'device_id', mas não 'container_id', encontramos a associação.
+        // --- LÓGICA DE ASSOCIAÇÃO APRIMORADA ---
         // ======================================================================
-        if (!container_id && device_id) {
-            logger.debug({ device_id }, `Buscando container associado ao dispositivo...`);
-            const result = await client.query(
-                `SELECT id FROM containers WHERE iot_device_id = $1`,
-                [device_id]
-            );
-            
+        
+        // Define o tipo de evento e a fonte se não vierem da IoT
+        const final_event_type = event_type || (tag ? 'RFID_DETECTED' : 'HEARTBEAT');
+        const final_source = source || 'iot-device';
+
+        // Se o evento é um HEARTBEAT da UMC (iot-device) e não temos o container_id
+        if (final_source === 'iot-device' && device_id && !container_id) {
+            logger.debug({ device_id }, `Heartbeat: Buscando container associado ao dispositivo...`);
+            const result = await client.query(`SELECT id FROM containers WHERE iot_device_id = $1`, [device_id]);
             if (result.rows.length > 0) {
-                container_id = result.rows[0].id; // Achamos! Usamos o container_id encontrado.
+                container_id = result.rows[0].id;
                 logger.debug({ container_id }, `Container ${container_id} encontrado para o dispositivo.`);
             } else {
-                logger.warn({ device_id }, `Evento recebido do dispositivo ${device_id}, mas ele não está associado a nenhum container.`);
+                logger.warn({ device_id }, `Heartbeat recebido, mas dispositivo não está associado a nenhum container.`);
+            }
+        }
+        // Se o evento é um SCAN do LMO (handheld-reader) e não temos o container_id
+        else if (final_source === 'handheld-reader' && tag && !container_id) {
+            logger.debug({ tag }, `Scan: Buscando container associado à tag RFID...`);
+            const result = await client.query(`SELECT id FROM containers WHERE rfid_tag_id = $1`, [tag]);
+            if (result.rows.length > 0) {
+                container_id = result.rows[0].id;
+            } else {
+                logger.warn({ tag }, `Scan recebido, mas a tag RFID não está associada a nenhum container.`);
             }
         }
         
-        // Determina o tipo de evento (se não foi enviado pela IoT)
-        const final_event_type = event_type || (tag ? 'RFID_DETECTED' : 'HEARTBEAT');
+        // Se após todas as tentativas, ainda não temos um container_id, a requisição é inválida
+        if (!container_id) {
+            await client.query('ROLLBACK');
+            logger.error({ body: req.body }, "Não foi possível encontrar o container correspondente ao evento.");
+            return res.status(404).json({ error: "Não foi possível encontrar o container correspondente ao dispositivo ou tag RFID." });
+        }
+        
+        // ======================================================================
 
-        // ======================================================================
-        // --- LÓGICA DE INSERÇÃO DO EVENTO ---
-        // ======================================================================
+        const final_ts_iso = ts_iso || new Date().toISOString();
+
         const insertQuery = `
             INSERT INTO container_movements
               (container_id, event_type, site, location, gpio, device_id, tag, ts_iso,
@@ -54,8 +69,8 @@ exports.createEvent = async (req, res) => {
             RETURNING id`;
             
         const insertValues = [
-            container_id, final_event_type, site, location, gpio, device_id, tag, ts_iso || new Date().toISOString(),
-            lat, lng, geohash, meta || null, idempotency_key, source || 'iot-device', voyage_id,
+            container_id, final_event_type, site, location, gpio, device_id, tag, final_ts_iso,
+            lat, lng, geohash, meta || null, idempotency_key, final_source, voyage_id,
             battery_percent, temp_c, humidity, pressure_hpa,
             sog_kn != null ? Number(sog_kn) : null,
             cog_deg != null ? Number(cog_deg) : null,
@@ -65,65 +80,55 @@ exports.createEvent = async (req, res) => {
 
         const r = await client.query(insertQuery, insertValues);
 
-        // ======================================================================
         // --- LÓGICA DE VERIFICAÇÃO DE ALERTA ---
-        // ======================================================================
         if (container_id && temp_c != null) {
-            const containerRules = await client.query(
-                'SELECT min_temp, max_temp FROM containers WHERE id = $1',
-                [container_id]
-            );
-            
+            const containerRules = await client.query('SELECT min_temp, max_temp FROM containers WHERE id = $1', [container_id]);
             if (containerRules.rows.length > 0) {
                 const { min_temp, max_temp } = containerRules.rows[0];
-                logger.info({ temp_recebida: temp_c, min: min_temp, max: max_temp }, "Verificando limites de temperatura...");
-
                 if (min_temp != null && max_temp != null) {
-                    let alertType = null;
-                    let message = null;
-                    if (parseFloat(temp_c) > parseFloat(max_temp)) {
-                        alertType = 'TEMP_HIGH';
-                        message = `Alerta! Temperatura (${temp_c}°C) acima do limite de ${max_temp}°C.`;
-                    } else if (parseFloat(temp_c) < parseFloat(min_temp)) {
-                        alertType = 'TEMP_LOW';
-                        message = `Alerta! Temperatura (${temp_c}°C) abaixo do limite de ${min_temp}°C.`;
-                    }
-
-                    if (alertType) {
+                    if (parseFloat(temp_c) > parseFloat(max_temp) || parseFloat(temp_c) < parseFloat(min_temp)) {
+                        const alertType = parseFloat(temp_c) > parseFloat(max_temp) ? 'TEMP_HIGH' : 'TEMP_LOW';
+                        const message = `Alerta! Temperatura (${temp_c}°C) fora do limite (${min_temp} a ${max_temp}°C).`;
                         logger.warn({ containerId: container_id, message }, "GERANDO ALERTA DE TEMPERATURA!");
                         await client.query(
                             `INSERT INTO alerts (id, alert_type, container_id, message, severity) VALUES ($1, $2, $3, $4, $5)`,
-                            [uuidv4(), alertType, container_id, message, 3] // Severity 3 = Alta
+                            [uuidv4(), alertType, container_id, message, 3]
                         );
                     }
                 }
             }
         }
+        
+        // --- LÓGICA DE TRANSFERÊNCIA RFID ---
+        if (final_event_type === 'RFID_DETECTED' && tag) {
+            logger.debug({ tag }, "Evento de RFID detectado. Processando lógica de transferência...");
+            await transferService.processRfidScan(tag);
+        }
 
-        await client.query('COMMIT'); // Confirma todas as operações se tudo deu certo
+        await client.query('COMMIT');
         res.status(201).json({ id: r.rows[0].id });
 
     } catch (e) {
-        await client.query('ROLLBACK'); // Desfaz tudo se qualquer passo falhar
+        await client.query('ROLLBACK').catch(() => {});
         logger.error({ err: e }, 'Erro ao criar evento de container');
         res.status(400).json({ error: "Bad Request" });
     } finally {
-        client.release();
+        if (client) client.release();
     }
 };
 
 // --- FUNÇÃO PARA LISTAR EVENTOS (sem alterações) ---
 exports.listEvents = async (req, res) => {
-  const { from, to, location, containerId } = req.query;
-  const where = [];
-  const params = [];
+    const { from, to, location, containerId } = req.query;
+    const where = [];
+    const params = [];
 
-  if (from) { params.push(from); where.push(`(ts_iso >= $${params.length} OR ts_iso IS NULL)`); }
-  if (to) { params.push(to); where.push(`(ts_iso <= $${params.length} OR ts_iso IS NULL)`); }
-  if (location) { params.push(location); where.push(`location = $${params.length}`); }
-  if (containerId){ params.push(containerId); where.push(`container_id = $${params.length}`); }
+    if (from) { params.push(from); where.push(`(ts_iso >= $${params.length} OR ts_iso IS NULL)`); }
+    if (to) { params.push(to); where.push(`(ts_iso <= $${params.length} OR ts_iso IS NULL)`); }
+    if (location) { params.push(location); where.push(`location = $${params.length}`); }
+    if (containerId){ params.push(containerId); where.push(`container_id = $${params.length}`); }
 
-  const sql = `
+    const sql = `
     SELECT
       id, container_id, event_type, site, location, gpio, device_id, tag,
       ts_iso, created_at, lat, lng,
