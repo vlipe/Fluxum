@@ -19,12 +19,14 @@ import Navios from "./Pages/Navios.jsx";
 import FormNavio from "./Pages/FormNavio.jsx";
 import DetalhesNavio from "./Pages/DetalhesNavio.jsx";
 import EditarNavio from "./Pages/EditarNavio.jsx";
+import TransferirConteiner from "./Pages/TransferirConteiner.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
   { path: "/Login", element: <Login /> },
   { path: "/reset-password", element: <ResetPassword /> },
   { path: "/oauth/success", element: <OAuthSuccess /> },
+  { path: "/TranferirConteiner", element: <TransferirConteiner /> },
   {
     element: <PrivateRoute />,
     children: [

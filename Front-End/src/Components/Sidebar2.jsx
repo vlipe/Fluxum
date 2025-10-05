@@ -204,7 +204,7 @@ const Sidebar2 = () => {
           <img
             src={avatar}
             alt="Foto de Perfil"
-            className="w-8 h-8 rounded-full object-cover"
+            className="w-11 h-11 rounded-full object-cover"
           />
         </Link>
 
