@@ -61,7 +61,7 @@ const DetalheNavio = () => {
       <Sidebar2 />
 
       <div className="flex-1 p-6 lg:p-10">
-        <h1 className="text-center text-xl lg:text-2xl font-GT font-bold text-azulEscuro mb-6">
+        <h1 className="text-center text-xl lg:text-2xl font-GT text-azulEscuro mb-6">
           Detalhe do Navio
         </h1>
 
