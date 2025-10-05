@@ -15,7 +15,7 @@
 const char* ssid = "wneves";
 const char* password = "20437355wgrjj";
 // Substitua pelo IP do seu computador na rede local
-const char* serverUrl = "http://192.168.15.13:3000/api/v1/telemetry/iot-data"; 
+const char* serverUrl = "http://192.168.15.13:3000/api/container-events"; 
 
 // --- Configuração dos Pinos ---
 const int GPS_RX_PIN = 16, GPS_TX_PIN = 17;
@@ -69,8 +69,14 @@ String montarPacoteJson() {
   float umidade = bme.readHumidity();
   float pressao = bme.readPressure();
 
+    String event_type = "HEARTBEAT";
+  if (ultimaTagRfidLida.length() > 0) {
+    event_type = "RFID_DETECTED";
+  }
+
   String jsonString = "{";
-  jsonString += "\"deviceId\":\"" + deviceId + "\"";
+  jsonString += "\"device_id\":\"" + deviceId + "\""; // Ajustado para 'device_id'
+  jsonString += ",\"event_type\":\"" + event_type + "\""; // <-- CAMPO ADICIONADO AQUI
 
   // Lógica Final do Timestamp: Só adiciona o campo se for válido (ano > 2000).
   if (gps.date.isValid() && gps.time.isValid() && gps.date.year() > 2000) {
