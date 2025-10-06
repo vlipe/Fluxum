@@ -7,5 +7,7 @@ router.post('/containers', authRequired, ctrl.create);
 router.get('/containers', authRequired, ctrl.list);
 router.get('/containers/:id', authRequired, ctrl.getById);
 router.put('/containers/:id', authRequired, ctrl.update);
+router.delete('/containers/:id', authRequired, ctrl.remove);
+
 
 module.exports = router;

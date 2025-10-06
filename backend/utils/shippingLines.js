@@ -1,7 +1,7 @@
 
 const OWNER_BY_PREFIX = {
   // MSC
-  MSCU: "MSC",
+  MSCU: "MSC",  
   MEDU: "MSC",
 
   // Maersk

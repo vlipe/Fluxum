@@ -1,39 +1,63 @@
 import { useEffect, useState } from "react";
 import Sidebar2 from "../Components/Sidebar2";
 import Informacao from "../assets/assetsNavios/informacao.svg";
-import Container from "../assets/assetsNavios/container.svg";
+import ContainerIcon from "../assets/assetsNavios/container.svg";
 import Caneta from "../assets/assetsLista/caneta.svg";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams } from "react-router-dom";
 import { apiFetch } from "../lib/api";
 
 const DetalheNavio = () => {
   const navigate = useNavigate();
+
+  // Resolvido: usar um único identificador para o navio (rota :id OU query ?id=)
+  const { id: idParam } = useParams();
   const [sp] = useSearchParams();
-  const id = sp.get("id");
+  const shipId = idParam ?? sp.get("id");
+
   const [ship, setShip] = useState(null);
+  const [containers, setContainers] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Carrega info do navio
   useEffect(() => {
     let live = true;
-    if (!id) { setLoading(false); return; }
-    apiFetch(`/api/v1/ships/${id}`, { auth: true })
-      .then(r => { if (live) setShip(r || null); })
-      .finally(() => { if (live) setLoading(false); });
+    (async () => {
+      try {
+        if (!shipId) { setLoading(false); return; }
+        const r = await apiFetch(`/api/v1/ships/${shipId}`, {auth: true});
+        if (live) setShip(r || null);
+      } catch (e) {
+        alert(e.message || "Erro ao carregar navio");
+      } finally {
+        if (live) setLoading(false);
+      }
+    })();
     return () => { live = false; };
-  }, [id]);
+  }, [shipId]);
+
+  // Carrega containers do navio
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!shipId) return;
+        const rows = await apiFetch(`/api/v1/ships/${shipId}/containers`, {auth:true}); 
+        setContainers(rows || []);
+      } catch (e) {
+        alert(e.message || "Erro ao carregar containers do navio");
+      }
+    })();
+  }, [shipId]);
 
   function fmtDateTime(dt) {
     if (!dt) return "—";
     const d = new Date(dt);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleString();
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleString();
   }
-
   function fmtDate(dy) {
     if (!dy) return "—";
     const d = new Date(dy);
-    if (Number.isNaN(d.getTime())) return "—";
-    return d.toLocaleDateString();
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
   }
 
   if (loading) {
@@ -66,13 +90,19 @@ const DetalheNavio = () => {
         </h1>
 
         <div className="bg-white rounded-2xl shadow-sm p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+          {/* Coluna esquerda: cabeçalho e mapa */}
           <div className="flex flex-col">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl md:text-2xl font-GT font-bold text-azulEscuro">
                   {ship.name}
                 </h2>
-                <img src={Caneta} onClick={() => navigate(`/EditarNavio?id=${ship.ship_id}`)} alt="editar" className="w-5 h-5 cursor-pointer" />
+                <img
+                  src={Caneta}
+                  onClick={() => navigate(`/EditarNavio?id=${ship.ship_id}`)}
+                  alt="editar"
+                  className="w-5 h-5 cursor-pointer"
+                />
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 md:gap-4">
@@ -83,10 +113,11 @@ const DetalheNavio = () => {
                 >
                   Nova Viagem
                 </button>
-                
+
                 <button
                   type="button"
-                  onClick={() => navigate("/FormConteiner")}
+                  onClick={() => navigate(`/FormConteiner?ship_id=${ship.ship_id}&imo=${ship.imo}`)}
+
                   className="bg-violeta text-white text-[12px] font-normal px-4 md:px-6 py-2 rounded-full hover:bg-roxo duration-300 w-full sm:w-auto text-center"
                 >
                   Cadastrar Contêiner
@@ -108,6 +139,7 @@ const DetalheNavio = () => {
             </div>
           </div>
 
+          {/* Coluna direita: infos e containers */}
           <div className="flex flex-col gap-6">
             <div>
               <h4 className="text-[#494594] flex items-center gap-2 mt-2 mb-4 md:mb-6">
@@ -140,36 +172,101 @@ const DetalheNavio = () => {
 
             <div>
               <p className="text-[#494594] flex items-center gap-2 mb-3">
-                <img src={Container} alt="container" className="w-5 h-5" />
+                <img src={ContainerIcon} alt="container" className="w-5 h-5" />
                 <span className="text-sm md:text-base">Contêineres a Bordo</span>
               </p>
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm bg-deletar rounded-3xl min-w-[300px]">
-                  <thead>
-                    <tr className="text-left text-azulEscuro">
-                      <th className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm">ID</th>
-                      <th className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">Status</th>
-                      <th className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">Última temp.</th>
-                    </tr>
-                  </thead>
+    <thead>
+      <tr className="text-left text-azulEscuro">
+        <th className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm">ID</th>
+        <th className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">Status</th>
+        <th className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">Última temp.</th>
+      </tr>
+    </thead>
                   <tbody>
-                    <tr>
-                      <td className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm">12345</td>
-                      <td className="px-4 md:px-6 lg:px-10 py-3 text-[#3BB61F] text-xs md:text-sm">Ativo</td>
-                      <td className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">32,2° C</td>
-                    </tr>
-                    <tr>
-                      <td className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm">67890</td>
-                      <td className="px-4 md:px-6 lg:px-10 py-3 text-[#F21D4E] text-xs md:text-sm">Inativo</td>
-                      <td className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">15,8° C</td>
-                    </tr>
+      {containers.length === 0 && (
+        <tr>
+          <td className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm" colSpan={3}>
+            Nenhum contêiner vinculado a este navio.
+          </td>
+        </tr>
+      )}
+                    {containers.map((c, i) => {
+  const isActive =
+    c.active === true ||
+    c.active === 'true' ||
+    c.active === 't' ||
+    c.active === 1;
+
+  const statusLabel = isActive ? "Ativo" : "Inativo";
+  const statusClass = isActive ? "text-[#3BB61F]" : "text-[#F21D4E]";
+  const tempStr =
+    (c.last_temp_c ?? c.last_temp_c === 0)
+      ? `${Number(c.last_temp_c).toFixed(1)}° C`
+      : "—";
+
+  return (
+    <tr
+      key={c.id}
+      className={`${i % 2 === 0 ? "bg-[#ECF2F9]" : "bg-white"} cursor-pointer`}
+      onClick={() => setSelected(c)}
+    >
+      <td className="px-4 md:px-8 lg:px-16 py-3 text-xs md:text-sm">{c.id}</td>
+      <td className={`px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm font-semibold ${statusClass}`}>
+        {statusLabel}
+      </td>
+      <td className="px-4 md:px-6 lg:px-10 py-3 text-xs md:text-sm">{tempStr}</td>
+    </tr>
+  );
+})}
+
                   </tbody>
                 </table>
               </div>
             </div>
+
           </div>
         </div>
       </div>
+
+    
+
+      {/* Modal simples para exibir/editar container */}
+{selected && (
+  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+      <h3 className="text-lg font-semibold text-azulEscuro mb-4">
+        Contêiner {selected.id}
+      </h3>
+      <div className="space-y-2 text-sm">
+        <div><span className="font-semibold">IMO:</span> {selected.imo || "—"}</div>
+        <div><span className="font-semibold">Status:</span> {selected.status || "—"}</div>
+        <div><span className="font-semibold">Descrição:</span> {selected.description || "—"}</div>
+        <div><span className="font-semibold">Tipo:</span> {selected.container_type || "—"}</div>
+      </div>
+      <div className="mt-6 flex justify-end gap-3">
+        <button
+          className="px-4 h-10 rounded-xl bg-[#ECF2F9] text-[#5B61B3]"
+          onClick={() => setSelected(null)}
+        >
+          Fechar
+        </button>
+        <button
+          className="px-4 h-10 rounded-xl bg-violeta text-white"
+          onClick={() => {
+            setSelected(null);
+            navigate(`/FormConteiner?id=${selected.id}&ship_id=${ship.ship_id}`);
+          }}
+        >
+          Editar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 };

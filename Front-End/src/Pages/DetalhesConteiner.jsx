@@ -4,34 +4,46 @@ import Lixeira from "../assets/assetsLista/lixeira.svg";
 import Caneta from "../assets/assetsLista/caneta.svg";
 import Sidebar2 from "../Components/Sidebar2";
 import { useNavigate } from "react-router-dom";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
 
 const DetalhesConteiner = () => {
   const navigate = useNavigate();
 
-  const conteineres = [
-    {
-      id: "PLM123456",
-      status: "Inativo",
-      navio: "Cruzeiro do Sul",
-      descricao: "Contêiner de refrigeração de 5.000L",
-      temperatura: "+10°C",
-    },
-    {
-      id: "QWE987654",
-      status: "Ativo",
-      navio: "Navio Atlântico",
-      descricao: "Contêiner seco de 2.000L",
-      temperatura: "N/A",
-    },
-    {
-      id: "ABC543210",
-      status: "Ativo",
-      navio: "Navio Brasilis",
-      descricao: "Contêiner refrigerado de 3.500L",
-      temperatura: "+6°C",
-    },
-  ];
+  const [containeres, setContainer] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+
+
+ async function carregar() {
+  setLoading(true);
+  try {
+    const rows = await apiFetch(`/api/v1/containers`, { auth: true });
+    const mapped = rows.map(r => {
+  const isActive =
+    r.active === true ||
+    r.active === 'true' ||
+    r.active === 't' ||
+    r.active === 1;
+  return {
+    id: r.id,
+    status: isActive ? "Ativo" : "Inativo",
+    navio: r.imo || "-",
+    descricao: r.description || "-",
+    temperatura: r.container_type?.toLowerCase().includes("reef") ? "-" : "N/A",
+  };
+});
+
+    setContainer(mapped);
+  } catch (e) {
+    alert(e.message || "Erro ao carregar containers");
+  } finally {
+    setLoading(false);
+  }
+}
+
+
+  useEffect(() => { carregar(); }, []);
 
   const filtros = ["A - Z", "Ativos", "Inativos", "Refrigeração"];
 
@@ -58,9 +70,8 @@ const DetalhesConteiner = () => {
                     {({ focus }) => (
                       <button
                         type="button"
-                        className={`w-full text-left px-4 py-2 text-sm rounded-xl ${
-                          focus ? "bg-[#9F9CE8] text-white" : "text-azulEscuro"
-                        }`}
+                        className={`w-full text-left px-4 py-2 text-sm rounded-xl ${focus ? "bg-[#9F9CE8] text-white" : "text-azulEscuro"
+                          }`}
                       >
                         {filtro}
                       </button>
@@ -84,20 +95,27 @@ const DetalhesConteiner = () => {
                 </tr>
               </thead>
               <tbody>
-                {conteineres.map((c, i) => (
+                {(!loading ? containeres : []).map((c, i) => (
                   <tr
                     key={c.id}
-                    className={`text-sm ${
-                      i % 2 === 0 ? "bg-[#ECF2F9]" : "bg-white"
-                    } rounded-3xl`}
+                    className={`text-sm ${i % 2 === 0 ? "bg-[#ECF2F9]" : "bg-white"
+                      } rounded-3xl`}
+
+                    onClick={(e) => {
+
+                      if ((e.target.closest("button"))) return;
+                      setSelected(c);
+
+                    }}
+
+                    style={{ cursor: "pointer" }}
                   >
                     <td className="px-8 py-3 rounded-l-3xl">{c.id}</td>
                     <td
-                      className={`px-4 py-3 font-semibold ${
-                        c.status === "Ativo"
+                      className={`px-4 py-3 font-semibold ${c.status === "Ativo"
                           ? "text-[#3BB61F]"
                           : "text-[#F21D4E]"
-                      }`}
+                        }`}
                     >
                       {c.status}
                     </td>
@@ -107,16 +125,39 @@ const DetalhesConteiner = () => {
                     <td className="px-4 py-3 flex gap-3 justify-between bg-white">
                       <button
                         className="p-2 rounded-xl bg-[#ECF2F9] hover:bg-transparent transition"
-                        onClick={() => navigate("/FormCad")}
+
+
+                        onClick={() => navigate(`/FormConteiner?id=${encodeURIComponent(c.id)}${c.navio ? `&imo=${encodeURIComponent(c.navio)}` : ''}`)}
                       >
                         <img src={Caneta} alt="editar" className="w-4 h-4" />
                       </button>
-                      <button className="p-2 rounded-xl bg-[#ECF2F9] hover:bg-transparent transition">
+                      <button className="p-2 rounded-xl bg-[#ECF2F9] hover:bg-transparent transition"
+
+                        onClick={async () => {
+                          if (!confirm(`Excluir container ${c.id}?`)) return;
+
+                          try {
+                            await apiFetch(`/api/v1/containers/${encodeURIComponent(c.id)}`, { method: "DELETE", auth: true });
+                            await carregar();
+                          } catch (e) {
+                            alert(e.message || "Erro ao excluir");
+                          }
+                        }}
+
+                      >
+
                         <img src={Lixeira} alt="deletar" className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
                 ))}
+
+                {loading && (
+                  <tr><td className="px-8 py-6 text-sm text-azulEscuro/70" colSpan={6}>Carregando...</td></tr>
+                )}
+                {!loading && containeres.length === 0 && (
+                  <tr><td className="px-8 py-6 text-sm text-azulEscuro/70" colSpan={6}>Nenhum container cadastrado.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -139,6 +180,33 @@ const DetalhesConteiner = () => {
           </div>
         </div>
       </div>
+
+      {/* modal da table, simples */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-azulEscuro mb-4">Contêiner {selected.id}</h3>
+            <div className="space-y-2 text-sm">
+              <div><span className="font-semibold">IMO:</span> {selected.navio}</div>
+              <div><span className="font-semibold">Status:</span> {selected.status}</div>
+              <div><span className="font-semibold">Descrição:</span> {selected.descricao}</div>
+              <div><span className="font-semibold">Temperatura:</span> {selected.temperatura}</div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button className="px-4 h-10 rounded-xl bg-[#ECF2F9] text-[#5B61B3]" onClick={() => setSelected(null)}>Fechar</button>
+              <button
+                className="px-4 h-10 rounded-xl bg-violeta text-white"
+                onClick={() => {
+                  setSelected(null);
+                  navigate(`/FormConteiner?id=${encodeURIComponent(selected.id)}${selected.navio ? `&imo=${encodeURIComponent(selected.navio)}` : ''}`);
+                }}
+              >
+                Editar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

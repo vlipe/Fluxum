@@ -1,9 +1,9 @@
 // routes/ships.routes.js
+const { pool } = require('../database/db');
 const express = require('express');
 const router = express.Router();
-const { pool } = require('../database/db');
 const { authRequired } = require('../middleware/auth');
-
+const containersCtrl = require('../controllers/container.controller');
 
 router.get('/ships', authRequired, async (req, res) => {
   try {
@@ -169,6 +169,10 @@ router.put('/ships/:id', authRequired, async (req, res) => {
     return res.status(500).json({ error: 'Erro ao atualizar ship' });
   }
 });
+
+
+
+router.get('/ships/:id/containers', authRequired, containersCtrl.listByShip);
 
 
 
