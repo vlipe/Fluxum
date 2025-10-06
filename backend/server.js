@@ -32,6 +32,7 @@ const v1Alerts = require("./routes/alerts.routes");
 const v1Dashboard = require("./routes/dashboard.routes");
 const v1GeoContainers = require("./routes/geo.containers.routes");
 const voyagesMapRouter = require("./routes/voyages_map.routes");
+const maritimeRoutes = require("./routes/maritime.routes.js");
 
 
 
@@ -172,7 +173,7 @@ app.use("/api/v1", v1Telemetry);
 app.use("/api/v1", v1Alerts);
 app.use("/api/v1", v1Dashboard);
 app.use("/api/v1", v1GeoContainers);
-app.use("/api/v1", require("./routes/maritime.routes"));
+app.use("/api/v1/route", maritimeRoutes);
 app.use("/api/v1", voyagesMapRouter);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(reportsRoutes);

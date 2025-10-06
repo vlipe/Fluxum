@@ -438,20 +438,42 @@ export default function Mapa() {
   useEffect(() => {
     const m = map.current;
     if (!m) return;
-    const onMapClickPlan = (e) => {
+
+    const onMapClickPlan = async (e) => {
       if (!planning) return;
+
       const lngLat = e.lngLat;
-      if (!origin) setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
-      else if (!destination) setDestination({ lat: lngLat.lat, lng: lngLat.lng });
-      else {
-        setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
-        setDestination(null);
-        setPlannedRoute(null);
-        setPlannedEnds(null);
+      try {
+        // Verifica se o ponto está sobre terra
+        const res = await apiFetch("/api/v1/route/maritime/check", {
+          method: "POST",
+          body: { lat: lngLat.lat, lng: lngLat.lng },
+        });
+
+        if (res?.onLand) {
+          alert("❌ Não é possível selecionar pontos sobre a terra.");
+          return;
+        }
+
+        // Se estiver na água, permite selecionar
+        if (!origin) setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
+        else if (!destination) setDestination({ lat: lngLat.lat, lng: lngLat.lng });
+        else {
+          setOrigin({ lat: lngLat.lat, lng: lngLat.lng });
+          setDestination(null);
+          setPlannedRoute(null);
+          setPlannedEnds(null);
+        }
+      } catch (err) {
+        console.warn("Erro ao verificar ponto:", err);
+        alert("Falha ao verificar se o ponto está sobre a água.");
       }
     };
+
     m.on("click", onMapClickPlan);
-    return () => { try { m.off("click", onMapClickPlan); } catch (err) { console.warn(err); } };
+    return () => {
+      try { m.off("click", onMapClickPlan); } catch (err) { console.warn(err); }
+    };
   }, [planning, origin, destination]);
 
   useEffect(() => {
@@ -462,17 +484,11 @@ export default function Mapa() {
         const res = await apiFetch("/api/v1/route/maritime", { method: "POST", body });
         let route = res?.route || null;
         if (!route) {
-          route = {
-            type: "FeatureCollection",
-            features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
-          };
+          throw new Error("Rota não retornada pelo servidor.");
         } else {
           if (route.type === "Feature") route = { type: "FeatureCollection", features: [route] };
           if (route.type === "FeatureCollection" && !route.features?.length) {
-            route = {
-              type: "FeatureCollection",
-              features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
-            };
+            throw new Error("Rota inválida retornada pelo servidor.");
           }
         }
         let ends = res?.ends || null;
@@ -491,17 +507,10 @@ export default function Mapa() {
         setPlannedEnds(ends);
       } catch (err) {
         console.warn(err);
-        setPlannedRoute({
-          type: "FeatureCollection",
-          features: [{ type: "Feature", geometry: { type: "LineString", coordinates: [[origin.lng, origin.lat], [destination.lng, destination.lat]] }, properties: {} }]
-        });
-        setPlannedEnds({
-          type: "FeatureCollection",
-          features: [
-            { type: "Feature", geometry: { type: "Point", coordinates: [origin.lng, origin.lat] }, properties: { role: "start" } },
-            { type: "Feature", geometry: { type: "Point", coordinates: [destination.lng, destination.lat] }, properties: { role: "end" } }
-          ]
-        });
+        // Removido fallback para linha reta (pode cruzar terra); agora alerta e limpa
+        alert("❌ Erro ao calcular rota segura (evitando terra). Ajuste os pontos e tente novamente.");
+        setPlannedRoute(null);
+        setPlannedEnds(null);
       }
     };
     doRoute();
