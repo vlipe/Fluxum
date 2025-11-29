@@ -1,3 +1,5 @@
+
+
 require('dotenv').config();
 
 console.log('🔧 Variáveis carregadas:');
@@ -6,7 +8,7 @@ console.log('  DATABASE_URL:', process.env.DATABASE_URL ? '✅' : '❌');
 console.log('  JWT_ACCESS_SECRET:', process.env.JWT_ACCESS_SECRET ? '✅' : '❌');
 
 const express = require("express");
-const dotenv = require("dotenv");
+const dns = require("node:dns/promises");
 const helmet = require("helmet");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
@@ -32,11 +34,19 @@ const v1Alerts = require("./routes/alerts.routes");
 const v1Dashboard = require("./routes/dashboard.routes");
 const v1GeoContainers = require("./routes/geo.containers.routes");
 const voyagesMapRouter = require("./routes/voyages_map.routes");
-const maritimeRoutes = require("./routes/maritime.routes.js");
 
+// Força DNS confiável no Node (alguns ISPs 4G falham em domínios .tech)
+try {
+  dns.setServers(["1.1.1.1", "8.8.8.8"]);
+  console.log("🛰️  DNS override ativo: 1.1.1.1, 8.8.8.8");
+} catch (e) {
+  console.warn("Não consegui setar DNS override:", e.message);
+}
 
-
-
+if (!process.env.DATABASE_URL) {
+  console.error("❌ Faltando DATABASE_URL no .env");
+  process.exit(1);
+}
 
 const app = express();
 app.set("trust proxy", 1);
@@ -66,6 +76,44 @@ app.use(speed);
 
 metricsRoute(app);
 app.get("/health", (_req, res) => res.json({ ok: true }));
+
+async function waitDns(host, tries=5){
+  for (let i=1;i<=tries;i++){
+    try { await dns.lookup(host); return true; }
+    catch(e){ await new Promise(r=>setTimeout(r, i*1000)); }
+  }
+  return false;
+}
+
+let DB_HOST;
+try {
+  DB_HOST = new URL(process.env.DATABASE_URL).host;
+} catch (e) {
+  console.error("DATABASE_URL inválida:", e.message);
+  process.exit(1);
+}
+
+async function waitDns(host, tries = 5) {
+  for (let i = 1; i <= tries; i++) {
+    try {
+      // resolve4 respeita dns.setServers – melhor p/ teste
+      await dns.resolve4(host);
+      return true;
+    } catch (_e) {
+      await new Promise((r) => setTimeout(r, i * 1000));
+    }
+  }
+  return false;
+}
+
+
+async function safeCall(fn, label){
+  try { return await fn(); }
+  catch(e){
+    if (e?.code === "ENOTFOUND") console.warn(label, "DNS falhou; vou tentar de novo depois.");
+    else console.error(label, e);
+  }
+}
 
 async function fetchContainersFC() {
   const { rows } = await pool.query(`
@@ -173,7 +221,7 @@ app.use("/api/v1", v1Telemetry);
 app.use("/api/v1", v1Alerts);
 app.use("/api/v1", v1Dashboard);
 app.use("/api/v1", v1GeoContainers);
-app.use("/api/v1/route", maritimeRoutes);
+app.use("/api/v1", require("./routes/maritime.routes"));
 app.use("/api/v1", voyagesMapRouter);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(reportsRoutes);
@@ -214,7 +262,7 @@ app.use("/api", v1Alias);
 // server.js
 
 async function pruneOldAlerts(days) {
-  const sql = `delete from alerts where created_at < now() - ($1 || '7 days')::interval returning id`;
+  const sql = `delete from alerts where created_at < now() - ($1 || ' days')::interval returning id`;
   try {
     const r = await pool.query(sql, [String(days)]);
     console.log(`[pruneOldAlerts] removed=${r.rowCount} older_than_days=${days}`);
@@ -252,13 +300,15 @@ const wss = new WebSocket.Server({ server, path: "/ws/positions" });
 wss.on("connection", async (ws, req) => {
   console.log("WS client connected:", req.url);
   ws.isAlive = true;
-  ws.on("pong", () => {
-    ws.isAlive = true;
-  });
+  ws.on("pong", () => { ws.isAlive = true; });
+
   try {
-    const [ships, containers] = await Promise.all([fetchShipsFC(), fetchContainersFC()]);
-    ws.send(JSON.stringify({ type: "ships", data: ships }));
-    ws.send(JSON.stringify({ type: "containers", data: containers }));
+    const [ships, containers] = await Promise.all([
+      safeCall(fetchShipsFC, "ws ships first"),
+      safeCall(fetchContainersFC, "ws cont first"),
+    ]);
+    if (ships) ws.send(JSON.stringify({ type: "ships", data: ships }));
+    if (containers) ws.send(JSON.stringify({ type: "containers", data: containers }));
   } catch (e) {
     console.error("ws first send error:", e);
   }
@@ -269,18 +319,16 @@ wss.on("error", (e) => {
 });
 
 setInterval(async () => {
-  let ships = null,
-    containers = null;
-  try {
-    ships = await fetchShipsFC();
-  } catch (e) {
-    console.error("ws ships tick:", e);
+  // Só tenta se o DNS estiver resolvendo o host do Neon (rápido: 2 tentativas)
+  const dnsOk = await waitDns(DB_HOST, 2);
+  if (!dnsOk) {
+    console.warn("tick: DNS ainda indisponível para", DB_HOST);
+    return;
   }
-  try {
-    containers = await fetchContainersFC();
-  } catch (e) {
-    console.error("ws cont tick:", e);
-  }
+
+  const ships = await safeCall(fetchShipsFC, "ws ships tick");
+  const containers = await safeCall(fetchContainersFC, "ws cont tick");
+
   wss.clients.forEach((ws) => {
     if (ws.readyState !== ws.OPEN) return;
     if (ships) ws.send(JSON.stringify({ type: "ships", data: ships }));

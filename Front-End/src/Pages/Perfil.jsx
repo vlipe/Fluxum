@@ -46,7 +46,7 @@ useEffect(() => {
   (async () => {
     try {
       const me = await apiFetch("/api/users/me", { auth: true });
-      if (me?.avatar_url) setProfileImage(toAbsolute(me.avatar_url));
+      setProfileImage(me?.avatar_url ? toAbsolute(me.avatar_url) : FotoDefault);
     } catch(err) { console.warn(err) }
   })();
 }, []);
@@ -83,15 +83,15 @@ useEffect(() => {
     const fd = new FormData();
     fd.append("avatar", blob, "avatar.jpg");
 
-    const u = await apiFetch(`/api/users/${id}/avatar`, {
+   const u = await apiFetch(`/api/users/${id}/avatar`, {
       method: "POST",
       auth: true,
       body: fd,
     });
-
     if (u?.avatar_url) {
       const abs = toAbsolute(u.avatar_url);
-      setProfileImage(abs); // ou abs + "?t="+Date.now() p/ bust de cache
+      // cache-busting para não mostrar a foto antiga
+      setProfileImage(`${abs}?t=${Date.now()}`);
       window.dispatchEvent(new CustomEvent("avatar:updated", { detail: { url: u.avatar_url } }));
     }
     setImageToCrop(null);
@@ -169,7 +169,7 @@ const handleDeleteAvatar = async () => {
               <label className="block text-sm text-azulEscuro mb-2">Foto de Perfil</label>
               <div className="flex flex-col sm:flex-row sm:items-center gap-4 mt-4">
                 <img 
-  src={profileImage} 
+  src={profileImage}
   alt="Foto de Perfil" 
   className="w-20 h-20 rounded-full object-cover self-center sm:self-start max-[760px]:w-12 max-[760px]:h-12" />
 

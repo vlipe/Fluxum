@@ -2,17 +2,20 @@ const express = require('express');
 const argon2 = require('argon2');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { v4: uuid } = require('uuid');
+
 const { query } = require('../database/db');
 const { loginValidator, registerValidator } = require('../validators/users.validators');
 const { validationResult } = require('express-validator');
+const { sendPasswordReset } = require('../services/mailer');
 
 const router = express.Router();
 
-const { sendPasswordReset } = require('../services/mailer');
+function clearStaleRefreshCookies(res) {
+  res.clearCookie('refreshToken', { path: '/api/auth' });
+  res.clearCookie('refreshToken', { path: '/' });
+}
 
 const RESET_EXPIRES_MIN = parseInt(process.env.RESET_EXPIRES_MIN || '30', 10);
-
 const RAW_FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const FRONTEND_URLS = RAW_FRONTEND_URL.split(',').map(s => s.trim()).filter(Boolean);
 
@@ -34,23 +37,21 @@ function signAccessToken(user) {
 function refreshCookieOpts(req) {
   const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
   const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-  const isLocal = proto === 'http' && (/^localhost:/.test(host) || /^127\.0\.0\.1:/.test(host));
+  const isLocal = proto === 'http' && (/^localhost:?/i.test(host) || /^127\.0\.0\.1:?/i.test(host));
 
   const hasCrossSiteHttps = (process.env.FRONTEND_URL || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean)
+    .split(',').map(s => s.trim()).filter(Boolean)
     .some(u => u.startsWith('https://') && !u.includes('localhost'));
 
   const sameSite = isLocal ? 'lax' : (hasCrossSiteHttps ? 'none' : 'lax');
-  const secure = isLocal ? false : (hasCrossSiteHttps || process.env.NODE_ENV === 'production');
+  const secure   = isLocal ? false : (hasCrossSiteHttps || process.env.NODE_ENV === 'production');
 
   return {
     httpOnly: true,
     secure,
     sameSite,
-    path: '/api/auth',
-    maxAge: (parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10)) * 24 * 60 * 60 * 1000
+    path: '/',   // cookie visível no 5173
+    maxAge: (parseInt(process.env.REFRESH_EXPIRES_DAYS || '30', 10)) * 24 * 60 * 60 * 1000,
   };
 }
 
@@ -73,7 +74,6 @@ async function rotateRefresh(oldRow) {
   await query('UPDATE refresh_tokens SET revoked_at=NOW() WHERE id=$1', [oldRow.id]);
   return createRefresh(oldRow.user_id, oldRow.family_id);
 }
-
 
 router.post('/register', registerValidator, async (req, res) => {
   const errors = validationResult(req);
@@ -99,33 +99,28 @@ router.post('/register', registerValidator, async (req, res) => {
     const account = acc.rows[0];
 
     const insert = await query(
-  `INSERT INTO users (name, email, password_hash, account_id)
-   VALUES ($1, $2, $3, $4)
-   RETURNING id, name, email, role, account_id`,
-  [name, emailNorm, password_hash, account.id]
-);
+      `INSERT INTO users (name, email, password_hash, account_id)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, email, role, account_id`,
+      [name, emailNorm, password_hash, account.id]
+    );
 
     const user = insert.rows[0];
-
     const accessToken = signAccessToken(user);
-    const familyId = uuid();
+    const familyId = crypto.randomUUID();
     const refreshToken = await createRefresh(user.id, familyId);
 
     await query('COMMIT');
 
-    res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
+    clearStaleRefreshCookies(res);
+res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
     return res.status(201).json({ user, accessToken, refreshToken });
   } catch (e) {
-  await query('ROLLBACK').catch(() => {});
-  console.error('REGISTER ERROR:', e); // <— adicione isso
-  return res.status(500).json({ error: 'Erro ao registrar', detail: String(e?.message || e) });
-}
-
+    await query('ROLLBACK').catch(() => {});
+    return res.status(500).json({ error: 'Erro ao registrar' });
+  }
 });
 
-/**
- * LOGIN
- */
 router.post('/login', loginValidator, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -142,17 +137,15 @@ router.post('/login', loginValidator, async (req, res) => {
   if (!ok) return res.status(401).json({ error: 'Credenciais inválidas' });
 
   const accessToken = signAccessToken(user);
-  const familyId = uuid();
+  const familyId = crypto.randomUUID();
   const refreshToken = await createRefresh(user.id, familyId);
 
-  res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
+clearStaleRefreshCookies(res);
+res.cookie('refreshToken', refreshToken, refreshCookieOpts(req));
   delete user.password_hash;
   return res.json({ user, accessToken, refreshToken });
 });
 
-/**
- * FORGOT PASSWORD
- */
 router.post('/forgot-password', async (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   const okResp = () => res.status(202).json({ message: 'Se o e-mail existir, enviaremos instruções.' });
@@ -178,35 +171,21 @@ router.post('/forgot-password', async (req, res) => {
 
     try {
       await sendPasswordReset(user.email, user.name, link);
-    } catch (e) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[DEV] Link de reset:', link);
-      } else {
-        console.error('Falha ao enviar e-mail de reset', e);
-      }
-    }
+    } catch {}
 
     return okResp();
-  } catch (e) {
-    req.log?.error?.(e, 'forgot-password error');
+  } catch {
     return okResp();
   }
 });
 
-/**
- * RESET PASSWORD
- */
 router.post('/reset-password', async (req, res) => {
   const token = String(req.body?.token || '');
   const newPassword = String(req.body?.password || '');
   const confirm = req.body?.confirmPassword != null ? String(req.body.confirmPassword) : null;
 
-  if (!token || newPassword.length < 6) {
-    return res.status(400).json({ error: 'Token inválido e/ou senha muito curta' });
-  }
-  if (confirm !== null && confirm !== newPassword) {
-    return res.status(400).json({ error: 'As senhas não coincidem' });
-  }
+  if (!token || newPassword.length < 6) return res.status(400).json({ error: 'Token inválido e/ou senha muito curta' });
+  if (confirm !== null && confirm !== newPassword) return res.status(400).json({ error: 'As senhas não coincidem' });
 
   const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
@@ -236,14 +215,10 @@ router.post('/reset-password', async (req, res) => {
     return res.status(204).send();
   } catch (e) {
     await query('ROLLBACK').catch(() => {});
-    req.log?.error?.(e, 'reset-password error');
     return res.status(500).json({ error: 'Erro ao redefinir senha' });
   }
 });
 
-/**
- * VALIDATE RESET TOKEN
- */
 router.get('/reset-password/validate', async (req, res) => {
   const token = String(req.query?.token || '');
   if (!token) return res.status(400).json({ valid: false });
@@ -258,9 +233,6 @@ router.get('/reset-password/validate', async (req, res) => {
   return res.json({ valid });
 });
 
-/**
- * REFRESH
- */
 router.post('/refresh', async (req, res) => {
   const token = getRefreshFromReq(req);
   if (!token) return res.status(401).json({ error: 'Refresh ausente' });
@@ -282,20 +254,20 @@ router.post('/refresh', async (req, res) => {
   const newRefresh = await rotateRefresh(row);
   const accessToken = signAccessToken(user);
 
-  res.cookie('refreshToken', newRefresh, refreshCookieOpts(req));
+  clearStaleRefreshCookies(res);
+res.cookie('refreshToken', newRefresh, refreshCookieOpts(req));
   return res.json({ accessToken, refreshToken: newRefresh });
 });
 
-/**
- * LOGOUT
- */
 router.post('/logout', async (req, res) => {
   const token = getRefreshFromReq(req);
   if (token) {
     await query('UPDATE refresh_tokens SET revoked_at=NOW() WHERE token=$1 AND revoked_at IS NULL', [token]);
-    res.clearCookie('refreshToken', { path: '/api/auth' });
+  
   }
-  return res.status(204).send();
+  clearStaleRefreshCookies(res);
+return res.status(204).send();
+
 });
 
 module.exports = router;

@@ -196,6 +196,21 @@ router.post('/:id/avatar', authRequired, upload.single('avatar'), async (req, re
     return res.status(500).json({ error: 'Erro ao salvar avatar' });
   }
 });
+
+
+// users.routes.js (NÃO coloque authRequired aqui)
+router.get('/:id/avatar', async (req, res) => {
+  const { id } = req.params;
+  if (!isUuid(id)) return res.status(400).json({ error: 'id inválido (UUID esperado)' });
+
+  const r = await pool.query('SELECT avatar_url FROM users WHERE id=$1', [id]);
+  if (r.rowCount === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
+
+  const url = r.rows[0]?.avatar_url;
+  if (!url) return res.status(204).end();          // sem avatar cadastrado
+  return res.redirect(302, url);                   // ex.: /uploads/avatars/xxx.jpg
+});
+
  
 
 router.delete('/:id/avatar', authRequired, async (req, res) => {

@@ -197,28 +197,55 @@ const carregar = useCallback(async () => {
           </div>
           <div className="flex flex-col gap-4 md:gap-8">
             {alertasFiltrados.length > 0 ? (
-              alertasFiltrados.map((alerta) => (
-                <div key={alerta.id} className="grid grid-cols-1 sm:grid-cols-12 sm:items-center bg-[#F2F6FB] px-4 md:px-6 py-4 md:py-5 rounded-3xl gap-4">
-                  <div className="flex items-center gap-4 sm:col-span-7">
-                    <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow cursor-pointer" onClick={() => setAlertaSelecionado(alerta)}>
-                      <img src={alerta.icone} alt="icone alerta" className="w-6 h-6" />
-                    </div>
-                    <p className="text-[#3E41C0] font-medium break-words">{alerta.titulo}</p>
-                  </div>
-                  <span className="text-sm text-[#3E41C0] text-center sm:col-span-2">{alerta.tempo}</span>
-                  <button
-                    onClick={() => alerta.acao === "Marcar como concluída" && concluirAlerta(alerta.id)}
-                    disabled={resolvendoId === alerta.id || alerta.acao !== "Marcar como concluída"}
-                    className={`font-medium text-sm px-8 py-4 rounded-full bg-white flex items-center justify-center gap-2 sm:col-span-3 ${alerta.acao === "Nada para concluir . . ." ? "text-violeta" : "text-[#3BB61F] hover:underline"} ${resolvendoId === alerta.id ? "opacity-60 cursor-not-allowed" : ""}`}
-                  >
-                    {alerta.acao === "Marcar como concluída" && <img src={Check} alt="check" className="w-4 h-4" />}
-                    {resolvendoId === alerta.id ? "Salvando..." : alerta.acao}
-                  </button>
-                </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-sm">Nenhum alerta encontrado...</p>
-            )}
+  alertasFiltrados.map((alerta) => (
+    <div
+      key={alerta.id}
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        if (e.target.closest("button")) return;
+        setAlertaSelecionado(alerta);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setAlertaSelecionado(alerta);
+        }
+      }}
+      className="grid grid-cols-1 sm:grid-cols-12 sm:items-center bg-[#F2F6FB] px-4 md:px-6 py-4 md:py-5 rounded-3xl gap-4 cursor-pointer hover:ring-2 hover:ring-violeta/40 transition"
+    >
+      <div className="flex items-center gap-4 sm:col-span-7">
+        <div className="w-10 h-10 flex items-center justify-center bg-white rounded-full shadow">
+          <img src={alerta.icone} alt="icone alerta" className="w-6 h-6" />
+        </div>
+        <p className="text-[#3E41C0] font-medium break-words">{alerta.titulo}</p>
+      </div>
+
+      <span className="text-sm text-[#3E41C0] text-center sm:col-span-2">
+        {alerta.tempo}
+      </span>
+
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          if (alerta.acao === "Marcar como concluída") concluirAlerta(alerta.id);
+        }}
+        disabled={resolvendoId === alerta.id || alerta.acao !== "Marcar como concluída"}
+        className={`font-medium text-sm px-8 py-4 rounded-full bg-white flex items-center justify-center gap-2 sm:col-span-3 ${
+          alerta.acao === "Nada para concluir . . ." ? "text-violeta" : "text-[#3BB61F] hover:underline"
+        } ${resolvendoId === alerta.id ? "opacity-60 cursor-not-allowed" : ""}`}
+      >
+        {alerta.acao === "Marcar como concluída" && (
+          <img src={Check} alt="check" className="w-4 h-4" />
+        )}
+        {resolvendoId === alerta.id ? "Salvando..." : alerta.acao}
+      </button>
+    </div>
+  ))
+) : (
+  <p className="text-gray-500 text-sm">Nenhum alerta encontrado...</p>
+)}
+
           </div>
         </div>
       </div>
@@ -246,7 +273,7 @@ const carregar = useCallback(async () => {
           else setAlertaSelecionado(null);
         }}
         disabled={resolvendoId === alertaSelecionado.id}
-        className={`w-full mt-4 px-4 py-2 bg-[#3BB61F] border-2 border-[#3BB61F] text-white rounded-[35px] hover:bg-transparent hover:text-[#3BB61F] duration-300 ${resolvendoId === alertaSelecionado.id ? "opacity-60 cursor-not-allowed" : ""}`}
+        className={`w-full mt-4 px-4 py-2 bg-[#3CB371] border-2 border-[#3BB61F] text-white rounded-[35px] hover:bg-transparent hover:text-[#3BB61F] duration-300 ${resolvendoId === alertaSelecionado.id ? "opacity-60 cursor-not-allowed" : ""}`}
       >
         {resolvendoId === alertaSelecionado.id ? "Salvando..." : alertaSelecionado.acao === "Marcar como concluída" ? "Marcar como concluída" : "Fechar"}
       </button>

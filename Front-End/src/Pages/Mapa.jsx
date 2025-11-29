@@ -101,7 +101,7 @@ export default function Mapa() {
   const [track, setTrack] = useState(null);
   const [q, setQ] = useState("");
   const [voyageCode, setVoyageCode] = useState("");
-  const [routeMode, setRouteMode] = useState("track");
+  const [routeMode] = useState("track");
   const [loading, setLoading] = useState(true);
 
   const [planning, setPlanning] = useState(false);

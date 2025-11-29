@@ -54,7 +54,7 @@ const Sidebar2 = () => {
 
     const onUpd = (e) => {
       const url = e.detail?.url;
-      setAvatar(url ? toAbsolute(url) : FotoDefault);
+      setAvatar(url ? `${toAbsolute(url)}?t=${Date.now()}` : FotoDefault);
     };
     window.addEventListener("avatar:updated", onUpd);
 

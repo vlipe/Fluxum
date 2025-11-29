@@ -3,7 +3,7 @@ const API = import.meta.env.VITE_API_URL || "";
 const storage = {
   get() {
     return localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
-  },
+  },  
   set(token, remember) {
     if (remember) {
       localStorage.setItem("accessToken", token);
@@ -45,6 +45,11 @@ async function rawFetch(path, { method = "GET", body, headers = {}, auth = false
 }
 
 export async function apiFetch(path, opts = {}) {
+    if (typeof path === 'string' && /\/api\/users\/[^/]+\/avatar/.test(path)) {
+    // Loga a stack pra ver de onde veio
+    // eslint-disable-next-line no-console
+    console.warn('[DEBUG avatar] Chamado:', path, '\nStack:\n', new Error().stack);
+  }
   let { res, data } = await rawFetch(path, opts);
   if (res.status !== 401) {
     if (!res.ok) throw new Error(data?.error || data?.message || "Erro na requisição");

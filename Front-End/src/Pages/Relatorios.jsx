@@ -19,7 +19,7 @@ function formatDateISOToBR(iso) {
   }
 }
 
-/**KPIs (summary) */
+
 function useSummary() {
   const [data, setData] = useState({ totalMovements: 0, avgDeliveryDays: 0 });
   const [loading, setLoading] = useState(true);
