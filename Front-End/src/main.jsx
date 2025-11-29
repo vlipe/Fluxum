@@ -5,7 +5,6 @@ import "./index.css";
 import Home from "./Pages/Home.jsx";
 import Dashboard from "./Pages/dashboard.jsx";
 import Alertas from "./Pages/Alertas.jsx";
-import Mapa from "./Pages/Mapa.jsx";
 import Relatorios from "./Pages/Relatorios.jsx";
 import Login from "./Pages/Login.jsx";
 import Perfil from "./Pages/Perfil.jsx";
@@ -21,6 +20,7 @@ import DetalhesNavio from "./Pages/DetalhesNavio.jsx";
 import EditarNavio from "./Pages/EditarNavio.jsx";
 import FormConteiner from "./Pages/FormConteiner.jsx";
 import DetalhesConteiner from "./Pages/DetalhesConteiner.jsx";
+import Viagens from "./Pages/Viagens.jsx";
 
 const router = createBrowserRouter([
   { path: "/", element: <Home /> },
@@ -31,7 +31,7 @@ const router = createBrowserRouter([
     element: <PrivateRoute />,
     children: [
       { path: "/Alertas", element: <Alertas /> },
-      { path: "/Mapa", element: <Mapa /> },
+      { path: "/Viagens", element: <Viagens /> },
       { path: "/Relatorios", element: <Relatorios /> },
       { path: "/Perfil", element: <Perfil /> },
       { path: "/Dashboard", element: <Dashboard /> },

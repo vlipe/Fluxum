@@ -82,6 +82,7 @@ function timeAgo(iso) {
 
 const Dashboard = () => {
   const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState(null);
   const navigate = useNavigate();
   const [pesquisa, setPesquisa] = useState("");
   const [summary, setSummary] = useState({
@@ -98,7 +99,10 @@ const Dashboard = () => {
     (async () => {
       try {
         const data = await apiFetch("/api/v1/dashboard");
-        if (!alive) return;
+        
+        const meResp = await apiFetch("/api/users/me", { auth: true });
+        if (alive) setMe(meResp || null);
+
         setSummary(data || {});
       } catch {
     
@@ -209,8 +213,19 @@ const Dashboard = () => {
         
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <p className="text-xl text-azulEscuro">
-            Oi, <span className="text-[#3E41C0] font-semibold">Felipe</span>!
-          </p>
+   Oi,{" "}
+   <span className="text-[#3E41C0] font-semibold">
+     {(() => {
+       const n = me?.name?.trim?.();
+       if (n) return n.split(" ")[0];               // primeiro nome
+       if (me?.email) return me.email.split("@")[0]; // fallback curto do e-mail
+       return "usuário";
+     })()}
+   </span>
+   !
+ </p>
+
+ 
           <div className="relative flex-1 max-w-full sm:max-w-4xl">
             <input
               type="text"

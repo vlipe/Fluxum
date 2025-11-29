@@ -105,3 +105,57 @@ exports.update = async (req, res) => {
     return res.status(500).json({ error: "Erro interno" });
   }
 };
+
+
+// controllers/live.controller.js (exemplo)
+const { pool } = require('../database/db');
+
+exports.ships = async (req, res) => {
+  const accountId = req.account_id;
+
+  const q = await pool.query(`
+    with last as (
+      select cm.voyage_id,
+             max(coalesce(cm.ts_iso, cm.created_at)) as last_ts
+        from container_movements cm
+       group by cm.voyage_id
+    ),
+    pos as (
+      select cm.voyage_id, cm.lat, cm.lng, l.last_ts
+        from container_movements cm
+        join last l
+          on l.voyage_id = cm.voyage_id
+         and l.last_ts = coalesce(cm.ts_iso, cm.created_at)
+    )
+    select jsonb_build_object(
+      'type','FeatureCollection',
+      'features', coalesce(jsonb_agg(
+        jsonb_build_object(
+          'type','Feature',
+          'geometry', jsonb_build_object(
+            'type','Point',
+            'coordinates', jsonb_build_array(
+              coalesce(p.lng, v.origin_lng),   -- usa origem se não houver posição real
+              coalesce(p.lat, v.origin_lat)
+            )
+          ),
+          'properties', jsonb_build_object(
+            'voyage_id',   v.voyage_id,
+            'voyage_code', v.voyage_code,
+            'ship_id',     s.ship_id,
+            'imo',         s.imo,
+            'name',        s.name,
+            'status',      v.status,          -- DRAFT/IN_TRANSIT/etc
+            'ts_iso',      coalesce(p.last_ts, v.created_at)
+          )
+        )
+      ) filter (where v.voyage_id is not null), '[]'::jsonb)
+    ) as fc
+    from voyages v
+    join ships s on s.ship_id = v.ship_id
+   where s.account_id = $1
+  `, [accountId]);
+
+  res.json(q.rows[0]?.fc ?? { type: 'FeatureCollection', features: [] });
+};
+

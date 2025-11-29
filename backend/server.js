@@ -57,12 +57,16 @@ const FRONTEND_URLS = (process.env.FRONTEND_URL || "http://localhost:5173")
   .filter(Boolean);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+const allowlist = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+
 app.use(cors({
-  origin: (process.env.CORS_ORIGINS?.split(",") || ["http://localhost:5173"]),
-  credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"], 
+  origin: ["http://localhost:5173"],
+  credentials: true,                   
+  allowedHeaders: ["Content-Type","Authorization"],
   methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"]
 }));
+
+
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 
@@ -116,11 +120,12 @@ async function safeCall(fn, label){
 }
 
 async function fetchContainersFC() {
-  const { rows } = await pool.query(`
-   WITH latest AS (
+ const { rows } = await pool.query(`
+    WITH latest AS (
   SELECT DISTINCT ON (cm.container_id)
     cm.container_id,
     cm.voyage_code,
+    cm.voyage_id,
     cm.imo,
     CASE WHEN trim(cm.lat::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lat::float8 ELSE NULL END AS lat,
     CASE WHEN trim(cm.lng::text) ~ '^-?\d+(\.\d+)?$' THEN cm.lng::float8 ELSE NULL END AS lng,
@@ -138,12 +143,13 @@ async function fetchContainersFC() {
              cm.created_at
            ) DESC
 )
-SELECT *
-FROM latest
-WHERE lat IS NOT NULL AND lng IS NOT NULL
-ORDER BY ts_iso DESC
-LIMIT 5000;
-
+SELECT l.*
+  FROM latest l
+  LEFT JOIN voyages v ON v.voyage_id = l.voyage_id
+ WHERE l.lat IS NOT NULL AND l.lng IS NOT NULL
+   AND (v.voyage_id IS NULL OR v.status NOT IN ('COMPLETED','ARRIVED'))
+ ORDER BY l.ts_iso DESC
+ LIMIT 5000;
   `);
 
   return {
@@ -185,9 +191,12 @@ agg AS (
   WHERE lat IS NOT NULL AND lng IS NOT NULL
   GROUP BY voyage_code
 )
-SELECT * FROM agg
-ORDER BY ts_iso DESC;
-
+SELECT a.*, v.voyage_id, v.status, s.imo, s.name
+      FROM agg a
+      JOIN voyages v ON v.voyage_code = a.voyage_code
+      JOIN ships   s ON s.ship_id = v.ship_id
+     WHERE v.status NOT IN ('COMPLETED','ARRIVED')
+     ORDER BY a.ts_iso DESC;
   `);
 
   return {
@@ -197,7 +206,11 @@ ORDER BY ts_iso DESC;
       geometry: { type: "Point", coordinates: [Number(r.lng), Number(r.lat)] },
       properties: {
         ship_key: r.voyage_code,
+        voyage_id: r.voyage_id,
         voyage_code: r.voyage_code,
+        status: r.status,
+        imo: r.imo,
+        name: r.name,
         containers_onboard: r.containers_onboard,
         ts_iso: r.ts_iso
       }
@@ -225,28 +238,10 @@ app.use("/api/v1", require("./routes/maritime.routes"));
 app.use("/api/v1", voyagesMapRouter);
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 app.use(reportsRoutes);
+app.use('/api/v1', require('./routes/live.routes'));
 
-app.get("/api/v1/live/containers", async (_req, res) => {
-  res.set("Cache-Control", "no-store");   // ← impede 304
-  try {
-    const fc = await fetchContainersFC();
-    res.status(200).json(fc);
-  } catch (e) {
-    console.error("containers/live error:", e);
-    res.status(500).json({ error: "failed to fetch containers" });
-  }
-});
 
-app.get("/api/v1/live/ships", async (_req, res) => {
-  res.set("Cache-Control", "no-store");   // ← impede 304
-  try {
-    const fc = await fetchShipsFC();
-    res.status(200).json(fc);
-  } catch (e) {
-    console.error("ships/live error:", e);
-    res.status(500).json({ error: "failed to fetch ships" });
-  }
-});
+
 
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));

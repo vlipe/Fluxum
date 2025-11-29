@@ -130,31 +130,74 @@ exports.lastUpdate = async (req, res) => {
 };
 
 exports.addContainers = async (req, res) => {
-  const id = req.params.id;
-  const items = Array.isArray(req.body) ? req.body : [];
+  const voyageId = req.params.id;
+
+  let items = [];
+  if (Array.isArray(req.body)) {
+    items = req.body;
+  } else if (req.body && Array.isArray(req.body.items)) {
+    items = req.body.items;
+  } else if (req.body && typeof req.body === 'object') {
+    items = [req.body]; // aceita objeto único
+  }
+
+  if (!items.length) return res.status(400).json({ error: 'Lista vazia' });
+ 
   const client = await pool.connect();
   try {
-    await client.query('begin');
+    await client.query("begin");
+
+    const v = await client.query(
+      `select v.voyage_id, s.account_id
+         from voyages v
+         join ships s on s.ship_id = v.ship_id
+        where v.voyage_id = $1`,
+      [voyageId]
+    );
+    if (v.rowCount === 0) {
+      await client.query("rollback");
+      return res.status(404).json({ error: "Viagem inexistente" });
+    }
+    const accountId = v.rows[0].account_id;
+
     for (const it of items) {
-      await client.query(
-        `insert into containers(id,container_type,owner,description) values($1,null,null,null) on conflict (id) do nothing`,
-        [it.container_id]
+      const cid = String(it.container_id || it.containerId || "").trim();
+      if (!cid) {
+        await client.query("rollback");
+        return res.status(400).json({ error: "container_id obrigatório" });
+      }
+
+      const c = await client.query(
+        `select id from containers where account_id=$1 and id=$2`,
+        [accountId, cid]
       );
+      if (c.rowCount === 0) {
+        await client.query("rollback");
+        return res.status(400).json({ error: `Contêiner ${cid} não pertence à conta ou não existe` });
+      }
+
       await client.query(
-        `insert into voyage_containers(voyage_id,container_id,loaded_at) values($1,$2,$3)
-         on conflict (voyage_id,container_id) do update set loaded_at=excluded.loaded_at`,
-        [id, it.container_id, it.loaded_at || new Date().toISOString()]
+        `insert into voyage_containers(voyage_id, container_id, loaded_at)
+         values ($1,$2,$3)
+         on conflict (voyage_id,container_id)
+         do update set loaded_at = excluded.loaded_at`,
+        [voyageId, cid, it.loaded_at ? new Date(it.loaded_at).toISOString() : new Date().toISOString()]
       );
     }
-    await client.query('commit');
-    res.json({ ok: true });
+
+    await client.query("commit");
+    return res.status(201).json({ ok: true, count: items.length });
   } catch (e) {
-    await client.query('rollback');
-    res.status(400).json({ error: 'Bad Request' });
+    await client.query("rollback");
+    console.error("[voyages.addContainers] error:", e);
+    return res.status(400).json({ error: "Bad Request" });
   } finally {
     client.release();
   }
 };
+
+
+
 
 exports.listContainers = async (req, res) => {
   const id = req.params.id;
